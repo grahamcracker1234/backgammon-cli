@@ -1,74 +1,60 @@
 use itertools::Itertools;
-use std::cell::RefCell;
 use std::collections::HashMap;
+use std::{borrow::Borrow, cell::RefCell};
 
 mod board;
+mod player;
+mod roll;
 mod turn;
 
 use board::Board;
+use player::Player;
+use roll::Roll;
 use turn::{Move, Turn};
 
 pub struct Game {
     current_player: RefCell<Player>,
-    current_roll: RefCell<[u8; 2]>,
+    current_roll: RefCell<Roll>,
     board: Board,
 }
 
 impl Game {
     pub fn new() -> Self {
         Self {
-            current_player: RefCell::new(Player::None),
+            current_player: RefCell::new(Player::random()),
             board: Board::new(),
-            current_roll: RefCell::new([0, 0]),
+            current_roll: RefCell::new(Roll::first_roll()),
         }
     }
 
     pub fn start(&self) {
-        use rand::Rng;
-        let mut rng = rand::thread_rng();
-
-        *self.current_roll.borrow_mut() = (|| loop {
-            let roll1: u8 = rng.gen_range(1..=6);
-            let roll2: u8 = rng.gen_range(1..=6);
-            if roll1 != roll2 {
-                return [roll1, roll2];
-            }
-        })();
-
-        *self.current_player.borrow_mut() = if rand::thread_rng().gen_bool(0.5) {
-            Player::Black
-        } else {
-            Player::White
-        };
-
         loop {
             println!("\n{:?}\n", self.board);
-            match self.get_valid_turn(self.get_notation()) {
-                Ok(turn) => {
-                    for mut r#move in turn.moves {
-                        self.make_valid_move(&mut r#move);
-                    }
-                    *self.current_roll.borrow_mut() = [rng.gen_range(1..=6), rng.gen_range(1..=6)];
-                    let current_player = *self.current_player.borrow();
+            let notation = self.get_notation();
+            let turn = self.get_turn(notation);
+            self.take_turn(turn);
+            self.change_turn();
+            // match self.get_valid_turn(self.get_notation()) {
+            //     Ok(turn) => {
+            //         for mut r#move in turn.moves {
+            //             self.make_valid_move(&mut r#move);
+            //         }
+            //         self.current_roll.borrow_mut().reroll();
 
-                    *self.current_player.borrow_mut() = match current_player {
-                        Player::White => Player::Black,
-                        Player::Black => Player::White,
-                        Player::None => panic!("No current player."),
-                    };
-                }
-                Err(err) => {
-                    println!("{}", err);
-                }
-            }
+            //         self.current_player.borrow_mut().switch();
+            //     }
+            //     Err(err) => {
+            //         println!("{}", err);
+            //     }
+            // }
         }
     }
 
+    #[allow(unstable_name_collisions)]
     fn get_notation(&self) -> String {
         use std::{io, io::Write};
-        let [roll1, roll2] = *self.current_roll.borrow();
         print!(
-            "{} to move ({}-{}): ",
+            "{} to move ({}): ",
             if *self.current_player.borrow() == Player::Black {
                 "Black"
             } else if *self.current_player.borrow() == Player::White {
@@ -76,8 +62,13 @@ impl Game {
             } else {
                 panic!("Attempting to get moves from '{:?}'.", self.current_player)
             },
-            roll1,
-            roll2
+            self.current_roll
+                .borrow()
+                .dice
+                .into_iter()
+                .map(|die| die.to_string())
+                .intersperse("-".to_string())
+                .collect::<String>()
         );
 
         io::stdout()
@@ -115,17 +106,49 @@ impl Game {
         )
     }
 
+    fn take_turn(&self, turn: Turn) {
+        for r#move in turn.moves {
+            self.make_move(r#move);
+        }
+    }
+
+    fn make_move(&self, r#move: Move) {
+        let mut from = r#move.from.1.borrow_mut();
+        let mut to = r#move.to.1.borrow_mut();
+
+        from.count -= 1;
+        if from.count == 0 {
+            from.player = Player::None;
+        }
+
+        if to.player == !r#move.player && to.count == 1 {
+            if r#move.player == Player::Black {
+                self.board.points[0].borrow_mut().count += 1;
+            } else if r#move.player == Player::White {
+                self.board.points[25].borrow_mut().count += 1;
+            }
+        }
+
+        to.player = r#move.player;
+        to.count += 1;
+    }
+
+    fn change_turn(&self) {
+        self.current_roll.borrow_mut().reroll();
+        self.current_player.borrow_mut().switch();
+    }
+
     fn get_valid_turn(&self, notation: String) -> Result<Turn, &'static str> {
         let turn = self.get_turn(notation);
 
         let current_roll = self.current_roll.borrow();
 
-        let mut rolls: HashMap<u8, u8> = HashMap::new();
-        if current_roll[0] == current_roll[1] {
-            rolls.insert(current_roll[0], 4);
+        let mut dice_freq: HashMap<u8, u8> = HashMap::new();
+        if current_roll.is_double() {
+            dice_freq.insert(current_roll.dice[0], 4);
         } else {
-            rolls.insert(current_roll[0], 1);
-            rolls.insert(current_roll[1], 1);
+            dice_freq.insert(current_roll.dice[0], 1);
+            dice_freq.insert(current_roll.dice[1], 1);
         }
 
         // Check each move
@@ -144,7 +167,7 @@ impl Game {
 
             // Check if move distance is valid.
             let diff = from_idx.abs_diff(to_idx) as u8;
-            match rolls.get_mut(&diff) {
+            match dice_freq.get_mut(&diff) {
                 Some(count) if *count > 0 => *count -= 1,
                 _ => return Err("Invalid move distance."),
             }
@@ -166,7 +189,7 @@ impl Game {
             from.player = Player::None;
         }
 
-        if Player::are_opposites(to.player, r#move.player) && to.count == 1 {
+        if !to.player == r#move.player && to.count == 1 {
             if r#move.player == Player::Black {
                 self.board.points[0].borrow_mut().count += 1;
             } else if r#move.player == Player::White {
@@ -201,7 +224,7 @@ impl Game {
         }
 
         // println!("4");
-        if Player::are_opposites(to.player, r#move.player) && to.count > 1 {
+        if !to.player == r#move.player && to.count > 1 {
             return false;
         }
 
@@ -212,19 +235,6 @@ impl Game {
 
         // println!("6");
         return true;
-    }
-}
-
-#[derive(Clone, Copy, Eq, Debug, Hash, PartialEq)]
-pub enum Player {
-    Black,
-    White,
-    None,
-}
-
-impl Player {
-    fn are_opposites(a: Player, b: Player) -> bool {
-        (a == Player::Black && b == Player::White) || (a == Player::White && b == Player::Black)
     }
 }
 
