@@ -96,7 +96,12 @@ impl std::fmt::Debug for Board {
             fmt_point(f, point)?;
         }
 
-        write!(f, "\n{}\n", sep)?;
+        write!(f, "\n{} Bar: ", sep)?;
+
+        fmt_point(f, &self.points[0])?;
+        fmt_point(f, &self.points[25])?;
+
+        write!(f, "\n")?;
 
         for point in self.points[7..=12].into_iter().rev() {
             fmt_point(f, point)?;
