@@ -1,4 +1,4 @@
-use super::{board::Point, Player};
+use super::{board::Point, player::Player};
 use std::cell::RefCell;
 
 pub(super) struct Turn<'a> {
@@ -20,5 +20,17 @@ pub(super) struct Move<'a> {
 impl<'a> Move<'a> {
     pub fn new(player: Player, from: &'a RefCell<Point>, to: &'a RefCell<Point>) -> Self {
         Self { player, from, to }
+    }
+
+    pub fn valid_direction(&self) -> bool {
+        match self.player {
+            Player::White => self.to.borrow().pos < self.from.borrow().pos,
+            Player::Black => self.to.borrow().pos > self.from.borrow().pos,
+            Player::None => panic!("There is no move direction for `Player::None`."),
+        }
+    }
+
+    pub fn distance(&self) -> usize {
+        self.from.borrow().pos.abs_diff(self.to.borrow().pos)
     }
 }

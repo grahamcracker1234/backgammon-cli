@@ -1,5 +1,3 @@
-use std::ops::Not;
-
 #[derive(Clone, Copy, Eq, Debug, Hash, PartialEq)]
 pub(super) enum Player {
     Black,
@@ -7,15 +5,9 @@ pub(super) enum Player {
     None,
 }
 
-// impl Player {
-//     fn are_opposites(a: Player, b: Player) -> bool {
-//         (a == Player::Black && b == Player::White) || (a == Player::White && b == Player::Black)
-//     }
-// }
-
 impl Player {
     pub fn switch(&mut self) {
-        *self = self.not();
+        *self = !*self;
     }
 
     pub fn random() -> Self {
@@ -27,7 +19,7 @@ impl Player {
     }
 }
 
-impl Not for Player {
+impl std::ops::Not for Player {
     type Output = Self;
 
     fn not(self) -> Self::Output {
@@ -36,5 +28,15 @@ impl Not for Player {
             Self::White => Self::Black,
             Self::None => Self::None,
         }
+    }
+}
+
+impl std::fmt::Display for Player {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Player::Black => "Black",
+            Player::White => "White",
+            Player::None => "None",
+        })
     }
 }
