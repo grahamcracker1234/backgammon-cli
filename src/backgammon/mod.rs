@@ -232,26 +232,26 @@ impl std::fmt::Display for Game {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::board::*;
-//     use super::*;
+#[cfg(test)]
+mod tests {
+    use super::board::*;
+    use super::*;
 
-//     #[test]
-//     fn basic_move() -> Result<(), &'static str> {
-//         let game = Game::new();
-//         *game.current_player.borrow_mut() = Player::Black;
+    #[test]
+    fn basic_move() -> Result<(), &'static str> {
+        let game = Game::new();
+        *game.current_player.borrow_mut() = Player::Black;
 
-//         let turn = game.get_valid_turn("1/2/3/5 1/5/7 17/19".to_string())?;
-//         for mut r#move in turn.moves {
-//             game.make_valid_move(&mut r#move);
-//         }
+        let turn = game.get_valid_turn("1/2/3/5 1/5/7 17/19".to_string())?;
+        for mut r#move in turn.moves {
+            game.make_valid_move(&mut r#move);
+        }
 
-//         // let mut points = Game::new().board.points;
-//         // *points[0].borrow_mut() = Point::new(0, Player::None);
-//         // *points[5].borrow_mut() = Point::new(1, Player::Black);
-//         // *points[5].borrow_mut() = Point::new(1, Player::Black);
+        // let mut points = Game::new().board.points;
+        // *points[0].borrow_mut() = Point::new(0, Player::None);
+        // *points[5].borrow_mut() = Point::new(1, Player::Black);
+        // *points[5].borrow_mut() = Point::new(1, Player::Black);
 
-//         Ok(())
-//     }
-// }
+        Ok(())
+    }
+}
