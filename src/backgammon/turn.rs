@@ -13,16 +13,12 @@ impl<'a> Turn<'a> {
 
 pub(super) struct Move<'a> {
     pub player: Player,
-    pub from: (usize, &'a RefCell<Point>),
-    pub to: (usize, &'a RefCell<Point>),
+    pub from: &'a RefCell<Point>,
+    pub to: &'a RefCell<Point>,
 }
 
 impl<'a> Move<'a> {
-    pub fn new(
-        player: Player,
-        from: (usize, &'a RefCell<Point>),
-        to: (usize, &'a RefCell<Point>),
-    ) -> Self {
+    pub fn new(player: Player, from: &'a RefCell<Point>, to: &'a RefCell<Point>) -> Self {
         Self { player, from, to }
     }
 }

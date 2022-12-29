@@ -1,6 +1,6 @@
 use itertools::Itertools;
+use std::cell::RefCell;
 use std::collections::HashMap;
-use std::{borrow::Borrow, cell::RefCell};
 
 mod board;
 mod player;
@@ -29,24 +29,11 @@ impl Game {
 
     pub fn start(&self) {
         loop {
-            println!("\n{:?}\n", self.board);
+            println!("\n{self}\n");
             let notation = self.get_notation();
             let turn = self.get_turn(notation);
             self.take_turn(turn);
             self.change_turn();
-            // match self.get_valid_turn(self.get_notation()) {
-            //     Ok(turn) => {
-            //         for mut r#move in turn.moves {
-            //             self.make_valid_move(&mut r#move);
-            //         }
-            //         self.current_roll.borrow_mut().reroll();
-
-            //         self.current_player.borrow_mut().switch();
-            //     }
-            //     Err(err) => {
-            //         println!("{}", err);
-            //     }
-            // }
         }
     }
 
@@ -94,10 +81,11 @@ impl Game {
                         .map(|m| m.parse::<usize>().unwrap())
                         .tuple_windows()
                         .map(|(i, j)| {
+                            let player = *self.current_player.borrow();
                             Move::new(
-                                *self.current_player.borrow(),
-                                (i, &self.board.points[i]),
-                                (j, &self.board.points[j]),
+                                player,
+                                &self.board.get_point(i - 1, player),
+                                &self.board.get_point(j - 1, player),
                             )
                         })
                         .collect::<Vec<_>>()
@@ -113,21 +101,21 @@ impl Game {
     }
 
     fn make_move(&self, r#move: Move) {
-        let mut from = r#move.from.1.borrow_mut();
-        let mut to = r#move.to.1.borrow_mut();
+        let mut from = r#move.from.borrow_mut();
+        let mut to = r#move.to.borrow_mut();
 
         from.count -= 1;
         if from.count == 0 {
             from.player = Player::None;
         }
 
-        if to.player == !r#move.player && to.count == 1 {
-            if r#move.player == Player::Black {
-                self.board.points[0].borrow_mut().count += 1;
-            } else if r#move.player == Player::White {
-                self.board.points[25].borrow_mut().count += 1;
-            }
-        }
+        // if to.player == !r#move.player && to.count == 1 {
+        //     if r#move.player == Player::Black {
+        //         self.board.points[0].borrow_mut().count += 1;
+        //     } else if r#move.player == Player::White {
+        //         self.board.points[25].borrow_mut().count += 1;
+        //     }
+        // }
 
         to.player = r#move.player;
         to.count += 1;
@@ -153,8 +141,8 @@ impl Game {
 
         // Check each move
         for r#move in &turn.moves {
-            let from_idx = r#move.from.0;
-            let to_idx = r#move.to.0;
+            let from_idx = r#move.from.borrow().pos;
+            let to_idx = r#move.to.borrow().pos;
 
             // Check if move direction is correct.
             if (from_idx.cmp(&to_idx) == std::cmp::Ordering::Greater
@@ -181,21 +169,21 @@ impl Game {
             panic!("Move is invalid");
         }
 
-        let mut from = r#move.from.1.borrow_mut();
-        let mut to = r#move.to.1.borrow_mut();
+        let mut from = r#move.from.borrow_mut();
+        let mut to = r#move.to.borrow_mut();
 
         from.count -= 1;
         if from.count == 0 {
             from.player = Player::None;
         }
 
-        if !to.player == r#move.player && to.count == 1 {
-            if r#move.player == Player::Black {
-                self.board.points[0].borrow_mut().count += 1;
-            } else if r#move.player == Player::White {
-                self.board.points[25].borrow_mut().count += 1;
-            }
-        }
+        // if !to.player == r#move.player && to.count == 1 {
+        //     if r#move.player == Player::Black {
+        //         self.board.points[0].borrow_mut().count += 1;
+        //     } else if r#move.player == Player::White {
+        //         self.board.points[25].borrow_mut().count += 1;
+        //     }
+        // }
 
         to.player = r#move.player;
         to.count += 1;
@@ -207,11 +195,8 @@ impl Game {
             return false;
         }
 
-        let (from_idx, from) = r#move.from;
-        let from = from.borrow();
-
-        let (to_idx, to) = r#move.to;
-        let to = to.borrow();
+        let from = r#move.from.borrow();
+        let to = r#move.to.borrow();
 
         // println!("2");
         if from.count <= 0 {
@@ -238,6 +223,15 @@ impl Game {
     }
 }
 
+impl std::fmt::Display for Game {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self.current_player.borrow() {
+            Player::White => write!(f, "{:#}", self.board),
+            _ => write!(f, "{}", self.board),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::board::*;
@@ -253,10 +247,10 @@ mod tests {
             game.make_valid_move(&mut r#move);
         }
 
-        let mut points = Game::new().board.points;
-        *points[0].borrow_mut() = Point::new(0, Player::None);
-        *points[5].borrow_mut() = Point::new(1, Player::Black);
-        *points[5].borrow_mut() = Point::new(1, Player::Black);
+        // let mut points = Game::new().board.points;
+        // *points[0].borrow_mut() = Point::new(0, Player::None);
+        // *points[5].borrow_mut() = Point::new(1, Player::Black);
+        // *points[5].borrow_mut() = Point::new(1, Player::Black);
 
         Ok(())
     }
