@@ -1,1 +1,32 @@
-/target
+# Ignore the cargo registry cache
+.cargo/registry
+
+# Ignore compiled Rust files
+*.o
+*.so
+*.a
+*.rlib
+
+# Ignore Rust test files
+*.rs.bk
+*.test
+
+# Ignore Rust build directories
+target/
+
+# Ignore macOS-specific files
+*.DS_Store
+.AppleDouble
+.LSOverride
+
+# Ignore IntelliJ workspace files
+.idea/
+
+# Ignore Xcode project files
+*.xcodeproj
+
+# Ignore Visual Studio Code workspace files
+.vscode/
+
+# Ignore Visual Studio Code backup files
+*.code-workspace.bak

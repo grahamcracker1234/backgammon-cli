@@ -1,4 +1,4 @@
-use backgammon_bot::backgammon::Game;
+use backgammon_cli::backgammon::Game;
 
 fn main() {
     let game = Game::new();
