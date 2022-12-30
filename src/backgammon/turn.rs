@@ -18,45 +18,42 @@ impl<'a> Turn<'a> {
         // Get all move groups
         let move_groups = notation
             .split_whitespace()
-            .map(|group| {
-                // If there is a match get the move group, otherwise error.
-                if let Some(r#match) = re.find(group) {
-                    Ok(Self::get_move_group(r#match.as_str(), game))
-                } else {
-                    Err("Invalid input.")
-                }
+            .map(|group| match re.find(group) {
+                Some(m) => Ok(Self::get_move_group(m.as_str(), game)?),
+                None => Err("Invalid input."),
             })
-            .collect::<Vec<_>>();
+            .flatten_ok()
+            .collect::<Result<Vec<_>, _>>();
 
-        // If there was an error return it.
-        if let Some(Err(error)) = move_groups.iter().find(|m| m.is_err()) {
-            return Err(error);
+        match move_groups {
+            Err(error) => return Err(error),
+            Ok(move_groups) => Ok(Turn::new(move_groups)),
         }
-
-        // Unwrap all results and flatten the move groups into a single list of moves.
-        Ok(Turn::new(
-            move_groups
-                .into_iter()
-                .filter_map(Result::ok)
-                .flatten()
-                .collect(),
-        ))
     }
 
-    fn get_move_group(notation: &str, game: &'a Game) -> Vec<Move<'a>> {
-        notation
+    fn get_move_group(notation: &str, game: &'a Game) -> Result<Vec<Move<'a>>, &'static str> {
+        let positions = notation
             .split('/')
-            .map(|m| match m {
-                "bar" => BoardPosition::Bar(&game.board.bar[&game.current_player]),
-                "off" => BoardPosition::Off(&game.board.off[&game.current_player]),
-                pos => {
-                    let index = pos.parse::<usize>().unwrap() - 1;
-                    BoardPosition::Point(game.board.get_point(index, game.current_player))
-                }
+            .map(|m| {
+                Ok(match m {
+                    "bar" => BoardPosition::Bar(&game.board.bar[&game.current_player]),
+                    "off" => BoardPosition::Off(&game.board.off[&game.current_player]),
+                    pos => {
+                        let index = pos.parse::<usize>().unwrap() - 1;
+                        BoardPosition::Point(game.board.get_point(index, game.current_player)?)
+                    }
+                })
             })
-            .tuple_windows()
-            .map(|(from, to)| Move::new(game.current_player, from, to))
-            .collect()
+            .collect::<Result<Vec<_>, _>>();
+
+        match positions {
+            Err(error) => return Err(error),
+            Ok(positions) => Ok(positions
+                .into_iter()
+                .tuple_windows()
+                .map(|(from, to)| Move::new(game.current_player, from, to))
+                .collect()),
+        }
     }
 }
 
@@ -118,6 +115,13 @@ mod test {
 
         let notation = "bar/off bar/off".to_string();
         let _ = Turn::from(notation, &Game::new());
+    }
+
+    #[test]
+    #[should_panic]
+    fn panic0() {
+        let notation = "120/12".to_string();
+        assert!(matches!(Turn::from(notation, &Game::new()), Ok(_)));
     }
 
     #[test]

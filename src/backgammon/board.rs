@@ -94,11 +94,19 @@ impl Board {
         }
     }
 
-    pub fn get_point(&self, index: usize, perspective: Player) -> &RefCell<FixedPoint> {
+    pub fn get_point(
+        &self,
+        index: usize,
+        perspective: Player,
+    ) -> Result<&RefCell<FixedPoint>, &'static str> {
+        let error = "Position is not valid.";
         match perspective {
-            Player::White => &self.points[BOARD_SIZE - 1 - index],
-            _ => &self.points[index],
+            Player::White => self
+                .points
+                .get((BOARD_SIZE - 1).checked_sub(index).ok_or(error)?),
+            _ => self.points.get(index),
         }
+        .ok_or(error)
     }
 }
 
@@ -135,7 +143,11 @@ impl std::fmt::Display for Board {
         }
 
         let fmt_points = |range: RangeInclusive<usize>, rev: bool| -> String {
-            fmt_line!(range, |i| fmt_point(self.get_point(i, perspective)), rev)
+            fmt_line!(
+                range,
+                |i| fmt_point(self.get_point(i, perspective).unwrap()),
+                rev
+            )
         };
 
         fn fmt_indices(range: RangeInclusive<usize>, rev: bool) -> colored::ColoredString {

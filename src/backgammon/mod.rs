@@ -1,3 +1,4 @@
+use colored::Colorize;
 use itertools::Itertools;
 use std::any::Any;
 use std::cell::{RefCell, RefMut};
@@ -38,7 +39,7 @@ impl Game {
             let turn = match Turn::from(notation, &self) {
                 Ok(turn) => turn,
                 Err(error) => {
-                    println!("{error}");
+                    println!("{}", error.red().bold());
                     self.board = saved_board;
                     *self.current_roll.borrow_mut() = saved_roll;
                     continue;
@@ -46,7 +47,7 @@ impl Game {
             };
 
             if let Err(error) = self.take_turn(turn) {
-                println!("{error}");
+                println!("{}", error.red().bold());
                 self.board = saved_board;
                 *self.current_roll.borrow_mut() = saved_roll;
                 continue;
@@ -60,19 +61,25 @@ impl Game {
     fn get_notation(&self) -> String {
         use std::{io, io::Write};
         print!(
-            "{} to move ({}): ",
-            match self.current_player {
-                Player::Black => "Black",
-                Player::White => "White",
-                Player::None => panic!("Attempting to get moves from '{:?}'.", self.current_player),
-            },
-            self.current_roll
-                .borrow()
-                .dice
-                .into_iter()
-                .map(|die| die.to_string())
-                .intersperse("-".to_string())
-                .collect::<String>()
+            "{}",
+            format!(
+                "{} to move ({}): ",
+                match self.current_player {
+                    Player::Black => "Black",
+                    Player::White => "White",
+                    Player::None =>
+                        panic!("Attempting to get moves from '{:?}'.", self.current_player),
+                },
+                self.current_roll
+                    .borrow()
+                    .dice
+                    .into_iter()
+                    .map(|die| die.to_string())
+                    .intersperse("-".to_string())
+                    .collect::<String>()
+            )
+            .green()
+            .italic()
         );
 
         io::stdout()
