@@ -181,14 +181,6 @@ pub(super) enum BoardPosition<'a> {
 }
 
 impl<'a> BoardPosition<'a> {
-    pub fn point(&self) -> Box<&'a RefCell<dyn Point>> {
-        match self {
-            BoardPosition::Off(off) => Box::new(*off),
-            BoardPosition::Bar(bar) => Box::new(*bar),
-            BoardPosition::Point(point) => Box::new(*point),
-        }
-    }
-
     pub fn effective_pos(&self) -> usize {
         let error = "There is no effective position for `Player::None`.";
         match self {
@@ -268,3 +260,9 @@ macro_rules! impl_point {
 
 impl_point!(FixedPoint);
 impl_point!(FreePoint);
+
+// macro_rules! point {
+//     () => {};
+// }
+
+// pub(super) use point;

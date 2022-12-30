@@ -1,6 +1,5 @@
 use colored::Colorize;
 use itertools::Itertools;
-use std::any::Any;
 use std::cell::{RefCell, RefMut};
 
 mod board;
@@ -33,7 +32,7 @@ impl Game {
             let saved_board = self.board.clone();
             let saved_roll = self.current_roll.borrow().clone();
 
-            println!("{self}");
+            println!("\n{self}\n");
 
             let notation = self.get_notation();
             let turn = match Turn::from(notation, &self) {
@@ -122,8 +121,12 @@ impl Game {
             .borrow_mut()
             .remove(r#move.distance() as u8)?;
 
-        // let from = *r#move.from.point();
-        // let to = *r#move.to.point();
+        // Ensure that if there is a piece in the bar it is moved.
+        if *self.board.bar[&r#move.player].borrow().count() > 0
+            && !matches!(r#move.from, BoardPosition::Bar(_))
+        {
+            return Err("Attempted to move a piece while there is one in the bar.");
+        }
 
         let mut from: RefMut<dyn Point> = match r#move.from {
             BoardPosition::Off(off) => off.borrow_mut(),
@@ -164,10 +167,8 @@ impl Game {
         *to.count_mut() += 1;
 
         // Reset the player of the previous position if it is empty and not from the bar
-        if *from.count() == 0 {
-            if !matches!(r#move.from, BoardPosition::Bar(_)) {
-                *from.player_mut() = Player::None;
-            }
+        if *from.count() == 0 && !matches!(r#move.from, BoardPosition::Bar(_)) {
+            *from.player_mut() = Player::None;
         }
 
         Ok(())
