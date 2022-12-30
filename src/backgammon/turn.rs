@@ -88,7 +88,7 @@ impl<'a> Move<'a> {
         let from_pos = self.from.effective_pos();
         let to_pos = self.to.effective_pos();
 
-        println!("{}: {} -> {}", self.player, from_pos, to_pos);
+        // println!("{}: {} -> {}", self.player, from_pos, to_pos);
         match self.player {
             Player::White => to_pos > from_pos,
             Player::Black => to_pos < from_pos,

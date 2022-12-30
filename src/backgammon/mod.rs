@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use std::any::Any;
 use std::cell::{RefCell, RefMut};
 
 mod board;
@@ -155,9 +156,11 @@ impl Game {
         *to.player_mut() = r#move.player;
         *to.count_mut() += 1;
 
-        // Reset the previous position if it is empty
+        // Reset the player of the previous position if it is empty and not from the bar
         if *from.count() == 0 {
-            *from.player_mut() = Player::None;
+            if !matches!(r#move.from, BoardPosition::Bar(_)) {
+                *from.player_mut() = Player::None;
+            }
         }
 
         Ok(())
