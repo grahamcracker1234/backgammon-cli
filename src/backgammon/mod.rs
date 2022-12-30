@@ -1,12 +1,12 @@
 use itertools::Itertools;
-use std::cell::RefCell;
+use std::cell::{RefCell, RefMut};
 
 mod board;
 mod player;
 mod roll;
 mod turn;
 
-use board::{Board, Point};
+use board::{Board, BoardPosition, Point};
 use player::Player;
 use roll::Roll;
 use turn::{Move, Turn};
@@ -28,15 +28,18 @@ impl Game {
 
     pub fn start(&mut self) {
         loop {
-            println!("{self}");
             let saved_board = self.board.clone();
-            let notation = self.get_notation();
+            let saved_roll = self.current_roll.borrow().clone();
 
+            println!("{self}");
+
+            let notation = self.get_notation();
             let turn = match Turn::from(notation, &self) {
                 Ok(turn) => turn,
                 Err(error) => {
                     println!("{error}");
                     self.board = saved_board;
+                    *self.current_roll.borrow_mut() = saved_roll;
                     continue;
                 }
             };
@@ -44,6 +47,7 @@ impl Game {
             if let Err(error) = self.take_turn(turn) {
                 println!("{error}");
                 self.board = saved_board;
+                *self.current_roll.borrow_mut() = saved_roll;
                 continue;
             }
 
@@ -110,40 +114,50 @@ impl Game {
             .borrow_mut()
             .remove(r#move.distance() as u8)?;
 
-        let from = *r#move.from.point();
-        let to = *r#move.to.point();
+        // let from = *r#move.from.point();
+        // let to = *r#move.to.point();
+
+        let mut from: RefMut<dyn Point> = match r#move.from {
+            BoardPosition::Off(off) => off.borrow_mut(),
+            BoardPosition::Bar(bar) => bar.borrow_mut(),
+            BoardPosition::Point(point) => point.borrow_mut(),
+        };
+
+        let mut to: RefMut<dyn Point> = match r#move.to {
+            BoardPosition::Off(off) => off.borrow_mut(),
+            BoardPosition::Bar(bar) => bar.borrow_mut(),
+            BoardPosition::Point(point) => point.borrow_mut(),
+        };
 
         // Ensure there is a piece to move.
-        if *from.borrow().count() == 0 {
+        if *from.count() == 0 {
             return Err("Attempted to move nonexistent piece.");
         }
 
         // Ensure the piece to move is the current player's.
-        if *from.borrow().player() != r#move.player {
+        if *from.player() != r#move.player {
             return Err("Attempted to move another player's piece.");
         }
 
         // Ensure that a piece is only moved onto another player's piece if the other player's piece the only piece on that space.
-        if *to.borrow().player() == !r#move.player {
-            if *to.borrow().count() == 1 {
+        if *to.player() == !r#move.player {
+            if *to.count() == 1 {
                 // Move the other player's piece to the bar.
-                *self.board.bar[to.borrow().player()]
-                    .borrow_mut()
-                    .count_mut() += 1;
-                *to.borrow_mut().count_mut() = 0;
+                *self.board.bar[to.player()].borrow_mut().count_mut() += 1;
+                *to.count_mut() = 0;
             } else {
                 return Err("Attempted to illegally move onto another player.");
             }
         }
 
         // Make the move.
-        *from.borrow_mut().count_mut() -= 1;
-        *to.borrow_mut().player_mut() = r#move.player;
-        *to.borrow_mut().count_mut() += 1;
+        *from.count_mut() -= 1;
+        *to.player_mut() = r#move.player;
+        *to.count_mut() += 1;
 
         // Reset the previous position if it is empty
-        if *from.borrow().count() == 0 {
-            *from.borrow_mut().player_mut() = Player::None;
+        if *from.count() == 0 {
+            *from.player_mut() = Player::None;
         }
 
         Ok(())

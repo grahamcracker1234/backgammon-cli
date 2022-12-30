@@ -10,62 +10,53 @@ impl<'a> Turn<'a> {
     pub fn new(moves: Vec<Move<'a>>) -> Self {
         Self { moves }
     }
+
     pub fn from(notation: String, game: &'a Game) -> Result<Self, &'static str> {
         let re = regex::Regex::new(r"^(?:(?:\d+)|(?:bar))(?:/\d+)*(?:/(?:(?:\d+)|(?:off)))$")
             .expect("Regex is invalid");
 
-        let moves = notation
+        // Get all move groups
+        let move_groups = notation
             .split_whitespace()
-            .flat_map(|m| {
-                if let Some(r#match) = re.find(m) {
-                    r#match
-                        .as_str()
-                        .split('/')
-                        .map(|m| match m {
-                            "bar" => BoardPosition::Bar(&game.board.bar[&game.current_player]),
-                            "off" => BoardPosition::Off(&game.board.off[&game.current_player]),
-                            pos => {
-                                let index = pos.parse::<usize>().unwrap() - 1;
-                                BoardPosition::Point(
-                                    game.board.get_point(index, game.current_player),
-                                )
-                            }
-                        })
-                        .tuple_windows()
-                        .map(|(from, to)| Some(Move::new(game.current_player, from, to)))
-                        .collect::<Vec<_>>()
+            .map(|group| {
+                // If there is a match get the move group, otherwise error.
+                if let Some(r#match) = re.find(group) {
+                    Ok(Self::get_move_group(r#match.as_str(), game))
                 } else {
-                    vec![None]
+                    Err("Invalid input.")
                 }
             })
             .collect::<Vec<_>>();
 
-        if moves.iter().any(|m| m.is_none()) {
-            return Err("Invalid input.");
+        // If there was an error return it.
+        if let Some(Err(error)) = move_groups.iter().find(|m| m.is_err()) {
+            return Err(error);
         }
-        Ok(Turn::new(moves.into_iter().map(|m| m.unwrap()).collect()))
-        // Turn::new(
-        //     regex::Regex::new(r"\d+(?:/\d+)+")
-        //         .expect("Regex is invalid")
-        //         .find_iter(&notation)
-        //         .flat_map(|m| {
-        //             m.as_str()
-        //                 .split('/')
-        //                 .map(|m| m.parse::<usize>().unwrap())
-        //                 .tuple_windows()
-        //                 .map(|(i, j)| {
-        //                     Move::new(
-        //                         game.current_player,
-        //                         BoardPosition::Point(
-        //                             &game.board.get_point(i - 1, game.current_player),
-        //                         ),
-        //                         &game.board.get_point(j - 1, game.current_player),
-        //                     )
-        //                 })
-        //                 .collect::<Vec<_>>()
-        //         })
-        //         .collect::<Vec<_>>(),
-        // )
+
+        // Unwrap all results and flatten the move groups into a single list of moves.
+        Ok(Turn::new(
+            move_groups
+                .into_iter()
+                .filter_map(Result::ok)
+                .flatten()
+                .collect(),
+        ))
+    }
+
+    fn get_move_group(notation: &str, game: &'a Game) -> Vec<Move<'a>> {
+        notation
+            .split('/')
+            .map(|m| match m {
+                "bar" => BoardPosition::Bar(&game.board.bar[&game.current_player]),
+                "off" => BoardPosition::Off(&game.board.off[&game.current_player]),
+                pos => {
+                    let index = pos.parse::<usize>().unwrap() - 1;
+                    BoardPosition::Point(game.board.get_point(index, game.current_player))
+                }
+            })
+            .tuple_windows()
+            .map(|(from, to)| Move::new(game.current_player, from, to))
+            .collect()
     }
 }
 

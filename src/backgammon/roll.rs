@@ -4,6 +4,7 @@ use std::collections::HashMap;
 const COUNT: usize = 2;
 const SIDES: u8 = 6;
 
+#[derive(Clone)]
 pub(super) struct Roll {
     pub dice: [u8; COUNT],
     dice_freq: HashMap<u8, u8>,
@@ -37,13 +38,13 @@ impl Roll {
             }
         }
 
-        println!("roll: {:?}", roll.dice_freq);
+        // println!("roll: {:?}", roll.dice_freq);
 
         roll
     }
 
     pub fn remove(&mut self, die: u8) -> Result<(), &'static str> {
-        println!("remove: {:?} (die: {die})", self.dice_freq);
+        // println!("remove: {:?} (die: {die})", self.dice_freq);
         match self.dice_freq.get_mut(&die) {
             Some(die) if *die > 0 => *die -= 1,
             _ => return Err("Cannot make move of that length."),
@@ -52,7 +53,7 @@ impl Roll {
     }
 
     pub fn available(&self) -> bool {
-        println!("available: {:?}", self.dice_freq);
+        // println!("available: {:?}", self.dice_freq);
         self.dice_freq.values().any(|&count| count > 0)
     }
 
