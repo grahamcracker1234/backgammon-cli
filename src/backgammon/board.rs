@@ -4,37 +4,37 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::RangeInclusive;
 
-use super::Player;
+use super::player::Player;
 
-const BOARD_SIZE: usize = 24;
+pub(super) const BOARD_SIZE: usize = 24;
 
 #[derive(Clone)]
 pub(super) struct Board {
-    points: [RefCell<Point>; BOARD_SIZE],
+    points: [RefCell<FixedPoint>; BOARD_SIZE],
     pub totals: HashMap<Player, u8>,
-    pub bar: HashMap<Player, RefCell<Point>>,
-    pub off: HashMap<Player, RefCell<Point>>,
+    pub bar: HashMap<Player, RefCell<FreePoint>>,
+    pub off: HashMap<Player, RefCell<FreePoint>>,
 }
 
 impl Board {
     pub fn new() -> Self {
-        let mut points: [Point; BOARD_SIZE] = (0..BOARD_SIZE)
-            .map(|i| Point::new(i, 0, Player::None))
+        let mut points: [FixedPoint; BOARD_SIZE] = (0..BOARD_SIZE)
+            .map(|i| FixedPoint::new(i, 0, Player::None))
             .collect::<Vec<_>>()
             .try_into()
             .unwrap();
         // Sets black pieces.
-        points[23] = Point::new(23, 2, Player::Black);
-        points[12] = Point::new(12, 5, Player::Black);
-        points[7] = Point::new(7, 3, Player::Black);
-        points[5] = Point::new(5, 5, Player::Black);
+        points[23] = FixedPoint::new(23, 2, Player::Black);
+        points[12] = FixedPoint::new(12, 5, Player::Black);
+        points[7] = FixedPoint::new(7, 3, Player::Black);
+        points[5] = FixedPoint::new(5, 5, Player::Black);
 
         // Sets white pieces.
         let index_offset = BOARD_SIZE - 1;
-        points[index_offset - 23] = Point::new(index_offset - 23, 2, Player::White);
-        points[index_offset - 12] = Point::new(index_offset - 12, 5, Player::White);
-        points[index_offset - 7] = Point::new(index_offset - 7, 3, Player::White);
-        points[index_offset - 5] = Point::new(index_offset - 5, 5, Player::White);
+        points[index_offset - 23] = FixedPoint::new(index_offset - 23, 2, Player::White);
+        points[index_offset - 12] = FixedPoint::new(index_offset - 12, 5, Player::White);
+        points[index_offset - 7] = FixedPoint::new(index_offset - 7, 3, Player::White);
+        points[index_offset - 5] = FixedPoint::new(index_offset - 5, 5, Player::White);
 
         Self::from_points(
             points
@@ -46,7 +46,7 @@ impl Board {
         )
     }
 
-    fn from_points(points: [RefCell<Point>; BOARD_SIZE]) -> Self {
+    fn from_points(points: [RefCell<FixedPoint>; BOARD_SIZE]) -> Self {
         let mut totals = HashMap::new();
 
         totals.insert(
@@ -67,12 +67,24 @@ impl Board {
         );
 
         let mut bar = HashMap::new();
-        bar.insert(Player::Black, RefCell::new(Point::new(0, 0, Player::Black)));
-        bar.insert(Player::White, RefCell::new(Point::new(0, 0, Player::White)));
+        bar.insert(
+            Player::Black,
+            RefCell::new(FreePoint::new(0, Player::Black)),
+        );
+        bar.insert(
+            Player::White,
+            RefCell::new(FreePoint::new(0, Player::White)),
+        );
 
         let mut off = HashMap::new();
-        off.insert(Player::Black, RefCell::new(Point::new(0, 0, Player::Black)));
-        off.insert(Player::White, RefCell::new(Point::new(0, 0, Player::White)));
+        off.insert(
+            Player::Black,
+            RefCell::new(FreePoint::new(0, Player::Black)),
+        );
+        off.insert(
+            Player::White,
+            RefCell::new(FreePoint::new(0, Player::White)),
+        );
 
         Self {
             points,
@@ -82,7 +94,7 @@ impl Board {
         }
     }
 
-    pub fn get_point(&self, index: usize, perspective: Player) -> &RefCell<Point> {
+    pub fn get_point(&self, index: usize, perspective: Player) -> &RefCell<FixedPoint> {
         match perspective {
             Player::White => &self.points[BOARD_SIZE - 1 - index],
             _ => &self.points[index],
@@ -99,57 +111,148 @@ impl std::fmt::Display for Board {
             Player::Black
         };
 
-        let fmt_point = |point: &RefCell<Point>| {
-            let str = format!("{:#02}", point.borrow().count);
-            let str = match point.borrow().player {
+        fn fmt_point(point: &RefCell<impl Point>) -> String {
+            let str = format!("{:#02}", point.borrow().count());
+            let str = match point.borrow().player() {
                 Player::Black => str.on_black().white().bold(),
                 Player::White => str.on_white().truecolor(0, 0, 0).bold(),
                 Player::None => str.normal().dimmed(),
             };
-            format!("{}", str)
+            format!("{str}")
+        }
+
+        macro_rules! fmt_line {
+            ($range:expr, $fn:expr, $rev:expr) => {{
+                let mut vec = $range.map($fn).collect::<Vec<_>>();
+                vec.insert(vec.len() / 2, '|'.to_string());
+                if $rev {
+                    vec.reverse();
+                }
+                vec.into_iter()
+                    .intersperse(" ".to_string())
+                    .collect::<String>()
+            }};
+        }
+
+        let fmt_points = |range: RangeInclusive<usize>, rev: bool| -> String {
+            fmt_line!(range, |i| fmt_point(self.get_point(i, perspective)), rev)
         };
 
-        let fmt_points = |range: RangeInclusive<usize>, rev: bool| {
-            let iter = range.map(|i| fmt_point(self.get_point(i, perspective)));
-            if rev {
-                iter.rev().intersperse(" ".to_string()).collect::<String>()
-            } else {
-                iter.intersperse(" ".to_string()).collect::<String>()
-            }
-        };
+        fn fmt_indices(range: RangeInclusive<usize>, rev: bool) -> colored::ColoredString {
+            fmt_line!(range, |i| format!("{i:#02}"), rev).bold()
+        }
 
         let sep = "\n-- -- -- -- -- -- + -- -- -- -- -- --\n";
 
         write!(
             f,
-            "{} | {}{sep}{} | {} Bar: {} {}{sep}{} | {} Off: {} {}{sep}{} | {}",
-            "13 14 15 16 17 18".bold(),
-            "19 20 21 22 23 24".bold(),
-            fmt_points(12..=17, false),
-            fmt_points(18..=23, false),
+            "{}{sep}{} Bar: {} {}{sep}{} Off: {} {}{sep}{}",
+            fmt_indices(13..=24, !f.alternate()),
+            fmt_points(12..=23, !f.alternate()),
             fmt_point(&self.bar[&perspective]),
             fmt_point(&self.bar[&!perspective]),
-            fmt_points(6..=11, true),
-            fmt_points(0..=5, true),
+            fmt_points(0..=11, f.alternate()),
             fmt_point(&self.off[&perspective]),
             fmt_point(&self.off[&!perspective]),
-            "12 11 10 09 08 07".bold(),
-            "06 05 04 03 02 01".bold(),
+            fmt_indices(1..=12, f.alternate()),
         )?;
 
         Ok(())
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-pub(super) struct Point {
-    pub pos: usize,
-    pub count: u8,
-    pub player: Player,
+#[derive(Clone, Debug)]
+pub(super) enum BoardPosition<'a> {
+    Bar(&'a RefCell<FreePoint>),
+    Off(&'a RefCell<FreePoint>),
+    Point(&'a RefCell<FixedPoint>),
 }
 
-impl Point {
+impl<'a> BoardPosition<'a> {
+    pub fn point(&self) -> Box<&'a RefCell<dyn Point>> {
+        match self {
+            BoardPosition::Off(off) => Box::new(*off),
+            BoardPosition::Bar(bar) => Box::new(*bar),
+            BoardPosition::Point(point) => Box::new(*point),
+        }
+    }
+
+    pub fn effective_pos(&self) -> usize {
+        let error = "There is no effective position for `Player::None`.";
+        match self {
+            BoardPosition::Off(off) => match off.borrow().player {
+                Player::Black => 0,
+                Player::White => BOARD_SIZE + 1,
+                _ => panic!("{error}"),
+            },
+            BoardPosition::Bar(bar) => match bar.borrow().player {
+                Player::Black => BOARD_SIZE + 1,
+                Player::White => 0,
+                _ => panic!("{error}"),
+            },
+            BoardPosition::Point(point) => *point.borrow().pos() + 1,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(super) struct FreePoint {
+    count: u8,
+    player: Player,
+}
+
+impl FreePoint {
+    pub fn new(count: u8, player: Player) -> Self {
+        Self { count, player }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(super) struct FixedPoint {
+    pos: usize,
+    count: u8,
+    player: Player,
+}
+
+impl FixedPoint {
     pub fn new(pos: usize, count: u8, player: Player) -> Self {
         Self { pos, count, player }
     }
+
+    pub fn pos(&self) -> &usize {
+        &self.pos
+    }
 }
+
+pub(super) trait Point {
+    fn count(&self) -> &u8;
+    fn count_mut(&mut self) -> &mut u8;
+
+    fn player(&self) -> &Player;
+    fn player_mut(&mut self) -> &mut Player;
+}
+
+macro_rules! impl_point {
+    ($type:ty) => {
+        impl Point for $type {
+            fn count(&self) -> &u8 {
+                &self.count
+            }
+
+            fn count_mut(&mut self) -> &mut u8 {
+                &mut self.count
+            }
+
+            fn player(&self) -> &Player {
+                &self.player
+            }
+
+            fn player_mut(&mut self) -> &mut Player {
+                &mut self.player
+            }
+        }
+    };
+}
+
+impl_point!(FixedPoint);
+impl_point!(FreePoint);

@@ -6,7 +6,7 @@ mod player;
 mod roll;
 mod turn;
 
-use board::Board;
+use board::{Board, Point};
 use player::Player;
 use roll::Roll;
 use turn::{Move, Turn};
@@ -31,7 +31,15 @@ impl Game {
             println!("{self}");
             let saved_board = self.board.clone();
             let notation = self.get_notation();
-            let turn = self.get_turn(notation);
+
+            let turn = match Turn::from(notation, &self) {
+                Ok(turn) => turn,
+                Err(error) => {
+                    println!("{error}");
+                    self.board = saved_board;
+                    continue;
+                }
+            };
 
             if let Err(error) = self.take_turn(turn) {
                 println!("{error}");
@@ -74,29 +82,6 @@ impl Game {
         input
     }
 
-    fn get_turn(&self, notation: String) -> Turn {
-        Turn::new(
-            regex::Regex::new(r"\d+(?:/\d+)+")
-                .expect("Regex is invalid")
-                .find_iter(&notation)
-                .flat_map(|m| {
-                    m.as_str()
-                        .split('/')
-                        .map(|m| m.parse::<usize>().unwrap())
-                        .tuple_windows()
-                        .map(|(i, j)| {
-                            Move::new(
-                                self.current_player,
-                                &self.board.get_point(i - 1, self.current_player),
-                                &self.board.get_point(j - 1, self.current_player),
-                            )
-                        })
-                        .collect::<Vec<_>>()
-                })
-                .collect::<Vec<_>>(),
-        )
-    }
-
     fn take_turn(&self, turn: Turn) -> Result<(), &'static str> {
         for r#move in turn.moves {
             self.make_move(r#move)?;
@@ -116,7 +101,7 @@ impl Game {
         }
 
         // Ensure the player is moving in the correct direction.
-        if r#move.valid_direction() {
+        if !r#move.valid_direction() {
             return Err("Attempted to move backwards.");
         }
 
@@ -125,38 +110,40 @@ impl Game {
             .borrow_mut()
             .remove(r#move.distance() as u8)?;
 
-        let mut from = r#move.from.borrow_mut();
-        let mut to = r#move.to.borrow_mut();
+        let from = *r#move.from.point();
+        let to = *r#move.to.point();
 
         // Ensure there is a piece to move.
-        if from.count == 0 {
+        if *from.borrow().count() == 0 {
             return Err("Attempted to move nonexistent piece.");
         }
 
         // Ensure the piece to move is the current player's.
-        if from.player != r#move.player {
+        if *from.borrow().player() != r#move.player {
             return Err("Attempted to move another player's piece.");
         }
 
         // Ensure that a piece is only moved onto another player's piece if the other player's piece the only piece on that space.
-        if to.player == !r#move.player {
-            if to.count == 1 {
+        if *to.borrow().player() == !r#move.player {
+            if *to.borrow().count() == 1 {
                 // Move the other player's piece to the bar.
-                self.board.bar[&to.player].borrow_mut().count += 1;
-                to.count = 0;
+                *self.board.bar[to.borrow().player()]
+                    .borrow_mut()
+                    .count_mut() += 1;
+                *to.borrow_mut().count_mut() = 0;
             } else {
                 return Err("Attempted to illegally move onto another player.");
             }
         }
 
         // Make the move.
-        from.count -= 1;
-        to.player = r#move.player;
-        to.count += 1;
+        *from.borrow_mut().count_mut() -= 1;
+        *to.borrow_mut().player_mut() = r#move.player;
+        *to.borrow_mut().count_mut() += 1;
 
         // Reset the previous position if it is empty
-        if from.count == 0 {
-            from.player = Player::None;
+        if *from.borrow().count() == 0 {
+            *from.borrow_mut().player_mut() = Player::None;
         }
 
         Ok(())
