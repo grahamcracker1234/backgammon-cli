@@ -35,12 +35,12 @@ impl Game {
 
             println!("\n{self}\n");
 
-            println!(
-                "{:?}",
-                Turn::get_available_moves(self)
-                    .map(|m| m.to_string())
-                    .collect::<Vec<_>>()
-            );
+            // println!(
+            //     "{:?}",
+            //     Turn::get_available_moves(self)
+            //         .map(|m| m.to_string())
+            //         .collect::<Vec<_>>()
+            // );
 
             let notation = self.get_notation();
             let turn = match Turn::from(notation, self) {
@@ -101,7 +101,7 @@ impl Game {
         input
     }
 
-    fn take_turn(&self, turn: Turn) -> Result<(), &'static str> {
+    fn take_turn(&mut self, turn: Turn) -> Result<(), &'static str> {
         for r#move in turn.moves {
             self.make_move(r#move)?;
         }
@@ -113,69 +113,71 @@ impl Game {
         Ok(())
     }
 
-    fn make_move(&self, r#move: Move) -> Result<(), &'static str> {
+    fn make_move(&mut self, r#move: Move) -> Result<(), &'static str> {
         // Ensure current player is making the move.
         if self.current_player != r#move.player {
             return Err("Only current player can move.");
         }
 
+        // Ensure that if there is a piece in the bar it is moved.
+        if !self.board.is_bar_empty(r#move.player) && !matches!(r#move.from, BoardPosition::Bar(_))
+        {
+            return Err("Attempted to move a piece while there is one in the bar.");
+        }
+
+        let mut from = match r#move.from {
+            BoardPosition::Bar(player) => self.board.bar(player).borrow_mut(),
+            BoardPosition::Off(player) => self.board.off(player).borrow_mut(),
+            BoardPosition::Point(index) => self.board.points[index].borrow_mut(),
+        };
+
+        let mut to = match r#move.to {
+            BoardPosition::Bar(player) => self.board.bar(player).borrow_mut(),
+            BoardPosition::Off(player) => self.board.off(player).borrow_mut(),
+            BoardPosition::Point(index) => self.board.points[index].borrow_mut(),
+        };
+
+        println!("{}: {:?} -> {:?}", r#move.player, from, to);
+
         // Ensure the player is moving in the correct direction.
-        if !r#move.valid_direction() {
+        if !from.is_valid_direction(*to) {
             return Err("Attempted to move backwards.");
         }
 
         // Ensures move is possible from the dice rolls.
         self.current_roll
             .borrow_mut()
-            .remove(r#move.distance() as u8)?;
-
-        // Ensure that if there is a piece in the bar it is moved.
-        if !self.board.is_empty_bar(&r#move.player) && !matches!(r#move.from, BoardPosition::Bar(_))
-        {
-            return Err("Attempted to move a piece while there is one in the bar.");
-        }
-
-        let mut from: RefMut<dyn Point> = match r#move.from {
-            BoardPosition::Off(off) => off.borrow_mut(),
-            BoardPosition::Bar(bar) => bar.borrow_mut(),
-            BoardPosition::Point(point) => point.borrow_mut(),
-        };
-
-        let mut to: RefMut<dyn Point> = match r#move.to {
-            BoardPosition::Off(off) => off.borrow_mut(),
-            BoardPosition::Bar(bar) => bar.borrow_mut(),
-            BoardPosition::Point(point) => point.borrow_mut(),
-        };
+            .remove(from.distance(*to) as u8)?;
 
         // Ensure there is a piece to move.
-        if *from.count() == 0 {
+        if from.count == 0 {
             return Err("Attempted to move nonexistent piece.");
         }
 
         // Ensure the piece to move is the current player's.
-        if *from.player() != r#move.player {
+        if from.player != r#move.player {
             return Err("Attempted to move another player's piece.");
         }
 
         // Ensure that a piece is only moved onto another player's piece if the other player's piece the only piece on that space.
-        if *to.player() == !r#move.player {
-            if *to.count() == 1 {
+        if to.player == !r#move.player {
+            if to.count == 1 {
                 // Move the other player's piece to the bar.
-                *self.board.bar[to.player()].borrow_mut().count_mut() += 1;
-                *to.count_mut() = 0;
+                self.board.bar(to.player).borrow_mut().count += 1;
+                to.count = 0;
             } else {
                 return Err("Attempted to illegally move onto another player.");
             }
         }
 
         // Make the move.
-        *from.count_mut() -= 1;
-        *to.player_mut() = r#move.player;
-        *to.count_mut() += 1;
+        from.count -= 1;
+        to.player = r#move.player;
+        to.count += 1;
 
         // Reset the player of the previous position if it is empty and not from the bar
-        if *from.count() == 0 && !matches!(r#move.from, BoardPosition::Bar(_)) {
-            *from.player_mut() = Player::None;
+        if from.count == 0 && !matches!(r#move.from, BoardPosition::Bar(_)) {
+            from.player = Player::None;
         }
 
         Ok(())

@@ -1,19 +1,23 @@
 use std::fmt::Display;
 
-use super::{board::BoardPosition, player::Player, Game};
+use super::{
+    board::{Board, BoardPosition},
+    player::Player,
+    Game,
+};
 use itertools::Itertools;
 
 #[derive(Debug)]
-pub(super) struct Turn<'a> {
-    pub moves: Vec<Move<'a>>,
+pub(super) struct Turn {
+    pub moves: Vec<Move>,
 }
 
-impl<'a> Turn<'a> {
-    pub fn new(moves: Vec<Move<'a>>) -> Self {
+impl Turn {
+    pub fn new(moves: Vec<Move>) -> Self {
         Self { moves }
     }
 
-    pub fn from(notation: String, game: &'a Game) -> Result<Self, &'static str> {
+    pub fn from(notation: String, game: &Game) -> Result<Self, &'static str> {
         let re = regex::Regex::new(r"^(?:(?:\d+)|(?:bar))(?:/\d+)*(?:/(?:(?:\d+)|(?:off)))$")
             .expect("Regex is invalid");
 
@@ -33,16 +37,17 @@ impl<'a> Turn<'a> {
         }
     }
 
-    fn get_move_group(notation: &str, game: &'a Game) -> Result<Vec<Move<'a>>, &'static str> {
+    fn get_move_group(notation: &str, game: &Game) -> Result<Vec<Move>, &'static str> {
         let positions = notation
             .split('/')
             .map(|m| {
+                let player = game.current_player;
                 Ok(match m {
-                    "bar" => BoardPosition::Bar(&game.board.bar[&game.current_player]),
-                    "off" => BoardPosition::Off(&game.board.off[&game.current_player]),
+                    "bar" => BoardPosition::Bar(player),
+                    "off" => BoardPosition::Off(player),
                     pos => {
-                        let index = pos.parse::<usize>().unwrap() - 1;
-                        BoardPosition::Point(game.board.get_point(index, game.current_player)?)
+                        let index = pos.parse::<usize>().unwrap();
+                        BoardPosition::Point(Board::convert_index(index, player)?)
                     }
                 })
             })
@@ -58,88 +63,88 @@ impl<'a> Turn<'a> {
         }
     }
 
-    pub fn get_available_moves(game: &'a mut Game) -> impl Iterator<Item = Move<'a>> {
-        // let game = game.clone();
-        let saved_board = game.board.clone();
+    // pub fn get_available_moves(game: &mut Game) -> impl Iterator<Item = Move> {
+    //     // let game = game.clone();
+    //     let saved_board = game.board.clone();
 
-        game.board.iter().flat_map(|board_position| {
-            // game.board = saved_board.clone();
-            game.current_roll
-                .borrow()
-                .available_rolls()
-                .map(|roll| {
-                    let from_pos = board_position.effective_pos();
+    //     game.board.iter().flat_map(|board_position| {
+    //         // game.board = saved_board.clone();
+    //         game.current_roll
+    //             .borrow()
+    //             .available_rolls()
+    //             .map(|roll| {
+    //                 let from_pos = board_position.effective_pos();
 
-                    let to_pos = from_pos + roll as usize;
-                    let notation = format!(
-                        "{}/{}",
-                        match board_position {
-                            BoardPosition::Bar(_) => "bar".to_string(),
-                            BoardPosition::Off(_) =>
-                                Err("Cannot move a piece after bearing it off.")?,
-                            BoardPosition::Point(_) => from_pos.to_string(),
-                        },
-                        match game.board.get_point(to_pos, game.current_player) {
-                            Ok(_) => to_pos,
-                            Err(error) => Err(error)?,
-                        }
-                    );
+    //                 let to_pos = from_pos + roll as usize;
+    //                 let notation = format!(
+    //                     "{}/{}",
+    //                     match board_position {
+    //                         BoardPosition::Bar(_) => "bar".to_string(),
+    //                         BoardPosition::Off(_) =>
+    //                             Err("Cannot move a piece after bearing it off.")?,
+    //                         BoardPosition::Point(_) => from_pos.to_string(),
+    //                     },
+    //                     match game.board.get_point(to_pos, game.current_player) {
+    //                         Ok(_) => to_pos,
+    //                         Err(error) => Err(error)?,
+    //                     }
+    //                 );
 
-                    let turn = Turn::from(notation, game)?;
-                    let moves = turn.moves.clone();
+    //                 let turn = Turn::from(notation, game)?;
+    //                 let moves = turn.moves.clone();
 
-                    game.take_turn(turn)?;
-                    Result::<_, &'static str>::Ok(moves)
-                })
-                .filter_map(Result::ok)
-                .flatten()
-                .collect::<Vec<_>>()
-        })
-    }
+    //                 game.take_turn(turn)?;
+    //                 Result::<_, &'static str>::Ok(moves)
+    //             })
+    //             .filter_map(Result::ok)
+    //             .flatten()
+    //             .collect::<Vec<_>>()
+    //     })
+    // }
 }
 
 #[derive(Debug, Clone)]
-pub(super) struct Move<'a> {
+pub(super) struct Move {
     pub player: Player,
-    pub from: BoardPosition<'a>,
-    pub to: BoardPosition<'a>,
+    pub from: BoardPosition,
+    pub to: BoardPosition,
 }
 
-impl<'a> Move<'a> {
-    pub fn new(player: Player, from: BoardPosition<'a>, to: BoardPosition<'a>) -> Self {
-        if let BoardPosition::Bar(_) = to {
-            panic!("Cannot move onto the bar.")
-        }
+impl Move {
+    pub fn new(player: Player, from: BoardPosition, to: BoardPosition) -> Self {
+        // if let BoardPosition::Bar(_) = to {
+        //     panic!("Cannot move onto the bar.")
+        // }
 
-        if let BoardPosition::Off(_) = from {
-            panic!("Cannot move a piece after bearing it off.")
-        }
+        // if let BoardPosition::Off(_) = from {
+        //     panic!("Cannot move a piece after bearing it off.")
+        // }
 
         Self { player, from, to }
     }
 
-    pub fn valid_direction(&self) -> bool {
-        if self.player == Player::None {
-            panic!("There is no move direction for `Player::None`.");
-        }
+    // pub fn valid_direction(&self) -> bool {
+    //     if self.player == Player::None {
+    //         panic!("There is no move direction for `Player::None`.");
+    //     }
 
-        let from_pos = self.from.effective_pos();
-        let to_pos = self.to.effective_pos();
+    //     let from_pos = self.from.effective_pos();
+    //     let to_pos = self.to.effective_pos();
 
-        // println!("{}: {} -> {}", self.player, from_pos, to_pos);
-        match self.player {
-            Player::White => to_pos > from_pos,
-            Player::Black => to_pos < from_pos,
-            _ => unreachable!(),
-        }
-    }
+    //     // println!("{}: {} -> {}", self.player, from_pos, to_pos);
+    //     match self.player {
+    //         Player::White => to_pos > from_pos,
+    //         Player::Black => to_pos < from_pos,
+    //         _ => unreachable!(),
+    //     }
+    // }
 
-    pub fn distance(&self) -> usize {
-        self.from.effective_pos().abs_diff(self.to.effective_pos())
-    }
+    // pub fn distance(&self) -> usize {
+    //     self.from.effective_pos.abs_diff(self.to.effective_pos)
+    // }
 }
 
-impl Display for Move<'_> {
+impl Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -147,12 +152,12 @@ impl Display for Move<'_> {
             match self.from {
                 BoardPosition::Bar(_) => "bar".to_string(),
                 BoardPosition::Off(_) => panic!("Cannot move a piece after bearing it off."),
-                BoardPosition::Point(point) => (*point.borrow().pos() + 1).to_string(),
+                BoardPosition::Point(index) => (index + 1).to_string(),
             },
             match self.to {
                 BoardPosition::Bar(_) => panic!("Cannot move onto the bar."),
                 BoardPosition::Off(_) => "off".to_string(),
-                BoardPosition::Point(point) => (*point.borrow().pos() + 1).to_string(),
+                BoardPosition::Point(index) => (index + 1).to_string(),
             }
         )
     }

@@ -1,8 +1,8 @@
 #[derive(Clone, Copy, Eq, Debug, Hash, PartialEq)]
 pub(super) enum Player {
-    Black,
-    White,
-    None,
+    Black = 0,
+    White = 1,
+    None = 2,
 }
 
 impl Player {

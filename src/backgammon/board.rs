@@ -1,7 +1,6 @@
 use colored::Colorize;
 use itertools::Itertools;
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::ops::RangeInclusive;
 
 use super::player::Player;
@@ -10,81 +9,103 @@ pub(super) const BOARD_SIZE: usize = 24;
 
 #[derive(Clone)]
 pub(super) struct Board {
-    points: [RefCell<FixedPoint>; BOARD_SIZE],
-    pub totals: HashMap<Player, u8>,
-    pub bar: HashMap<Player, RefCell<FreePoint>>,
-    pub off: HashMap<Player, RefCell<FreePoint>>,
+    pub points: [RefCell<Point>; BOARD_SIZE],
+    totals: [u8; 2],
+    bar: [RefCell<Point>; 2],
+    off: [RefCell<Point>; 2],
 }
 
 impl Board {
     pub fn new() -> Self {
-        let mut points: [FixedPoint; BOARD_SIZE] = (0..BOARD_SIZE)
-            .map(|i| FixedPoint::new(i, 0, Player::None))
+        let points: [_; BOARD_SIZE] = (0..BOARD_SIZE)
+            .map(|i| RefCell::new(Point::new(i + 1, 0, Player::None)))
             .collect::<Vec<_>>()
             .try_into()
             .unwrap();
+
         // Sets black pieces.
-        points[23] = FixedPoint::new(23, 2, Player::Black);
-        points[12] = FixedPoint::new(12, 5, Player::Black);
-        points[7] = FixedPoint::new(7, 3, Player::Black);
-        points[5] = FixedPoint::new(5, 5, Player::Black);
+        *points[23].borrow_mut() = Point::new(23 + 1, 2, Player::Black);
+        *points[12].borrow_mut() = Point::new(12 + 1, 5, Player::Black);
+        *points[7].borrow_mut() = Point::new(7 + 1, 3, Player::Black);
+        *points[5].borrow_mut() = Point::new(5 + 1, 5, Player::Black);
 
         // Sets white pieces.
-        let index_offset = BOARD_SIZE - 1;
-        points[index_offset - 23] = FixedPoint::new(index_offset - 23, 2, Player::White);
-        points[index_offset - 12] = FixedPoint::new(index_offset - 12, 5, Player::White);
-        points[index_offset - 7] = FixedPoint::new(index_offset - 7, 3, Player::White);
-        points[index_offset - 5] = FixedPoint::new(index_offset - 5, 5, Player::White);
+        let offset = BOARD_SIZE - 1;
+        *points[offset - 23].borrow_mut() = Point::new(offset - 23 + 1, 2, Player::White);
+        *points[offset - 12].borrow_mut() = Point::new(offset - 12 + 1, 5, Player::White);
+        *points[offset - 7].borrow_mut() = Point::new(offset - 7 + 1, 3, Player::White);
+        *points[offset - 5].borrow_mut() = Point::new(offset - 5 + 1, 5, Player::White);
 
-        Self::from_points(
-            points
-                .iter()
-                .map(|&p| RefCell::new(p))
-                .collect::<Vec<_>>()
-                .try_into()
-                .unwrap(),
-        )
+        Self::from_points(points)
     }
 
-    fn from_points(points: [RefCell<FixedPoint>; BOARD_SIZE]) -> Self {
-        let mut totals = HashMap::new();
+    pub fn bar(&self, player: Player) -> &RefCell<Point> {
+        &self.bar[player as usize]
+    }
 
-        totals.insert(
-            Player::Black,
+    pub fn off(&self, player: Player) -> &RefCell<Point> {
+        &self.off[player as usize]
+    }
+
+    // pub fn totals(&self, player: Player) -> &u8 {
+    //     &self.totals[player as usize]
+    // }
+
+    // pub fn totals_mut(&mut self, player: Player) -> &mut u8 {
+    //     &mut self.totals[player as usize]
+    // }
+
+    // pub fn bar(&self, player: Player) -> &Point {
+    //     &self.bar[player as usize]
+    // }
+
+    // pub fn bar_mut(&mut self, player: Player) -> &mut Point {
+    //     &mut self.bar[player as usize]
+    // }
+
+    // pub fn off(&self, player: Player) -> &Point {
+    //     &self.off[player as usize]
+    // }
+
+    // pub fn off_mut(&mut self, player: Player) -> &mut Point {
+    //     &mut self.off[player as usize]
+    // }
+    pub fn convert_index(
+        notation_index: usize,
+        perspective: Player,
+    ) -> Result<usize, &'static str> {
+        match perspective {
+            Player::White => (BOARD_SIZE).checked_sub(notation_index),
+            _ => notation_index.checked_sub(1),
+        }
+        .ok_or("Position is not valid.")
+    }
+
+    fn from_points(points: [RefCell<Point>; BOARD_SIZE]) -> Self {
+        let totals = [
             points
                 .iter()
-                .filter(|&p| p.borrow().player == Player::Black)
-                .map(|p| p.borrow().count)
+                .filter_map(|p| match p.borrow().player {
+                    Player::Black => Some(p.borrow().count),
+                    _ => None,
+                })
                 .sum(),
-        );
-        totals.insert(
-            Player::White,
             points
                 .iter()
-                .filter(|&p| p.borrow().player == Player::White)
-                .map(|p| p.borrow().count)
+                .filter_map(|p| match p.borrow().player {
+                    Player::White => Some(p.borrow().count),
+                    _ => None,
+                })
                 .sum(),
-        );
-
-        let mut bar = HashMap::new();
-        bar.insert(
-            Player::Black,
-            RefCell::new(FreePoint::new(0, Player::Black)),
-        );
-        bar.insert(
-            Player::White,
-            RefCell::new(FreePoint::new(0, Player::White)),
-        );
-
-        let mut off = HashMap::new();
-        off.insert(
-            Player::Black,
-            RefCell::new(FreePoint::new(0, Player::Black)),
-        );
-        off.insert(
-            Player::White,
-            RefCell::new(FreePoint::new(0, Player::White)),
-        );
+        ];
+        let bar = [
+            RefCell::new(Point::new(BOARD_SIZE + 1, 0, Player::Black)),
+            RefCell::new(Point::new(0, 0, Player::White)),
+        ];
+        let off = [
+            RefCell::new(Point::new(0, 0, Player::Black)),
+            RefCell::new(Point::new(BOARD_SIZE + 1, 0, Player::White)),
+        ];
 
         Self {
             points,
@@ -98,7 +119,7 @@ impl Board {
         &self,
         index: usize,
         perspective: Player,
-    ) -> Result<&RefCell<FixedPoint>, &'static str> {
+    ) -> Result<&RefCell<Point>, &'static str> {
         let error = "Position is not valid.";
         match perspective {
             Player::White => self
@@ -109,16 +130,16 @@ impl Board {
         .ok_or(error)
     }
 
-    pub fn iter<'a>(&'a self) -> impl Iterator<Item = BoardPosition<'a>> {
-        self.points
-            .iter()
-            .map(|p| BoardPosition::Point(p))
-            .chain(self.bar.values().map(|b| BoardPosition::Bar(b)))
-            .chain(self.off.values().map(|o| BoardPosition::Off(o)))
-    }
+    // pub fn iter<'a>(&'a self) -> impl Iterator<Item = BoardPosition> {
+    //     self.points
+    //         .iter()
+    //         .map(|p| BoardPosition::Point(p))
+    //         .chain(self.bar.values().map(|b| BoardPosition::Bar(b)))
+    //         .chain(self.off.values().map(|o| BoardPosition::Off(o)))
+    // }
 
-    pub fn is_empty_bar(&self, player: &Player) -> bool {
-        *self.bar[player].borrow().count() == 0
+    pub fn is_bar_empty(&self, player: Player) -> bool {
+        self.bar(player).borrow().count == 0
     }
 }
 
@@ -131,9 +152,9 @@ impl std::fmt::Display for Board {
             Player::Black
         };
 
-        fn fmt_point(point: &RefCell<impl Point>) -> String {
-            let str = format!("{:#02}", point.borrow().count());
-            let str = match point.borrow().player() {
+        fn fmt_point(point: &RefCell<Point>) -> String {
+            let str = format!("{:#02}", point.borrow().count);
+            let str = match point.borrow().player {
                 Player::Black => str.on_black().white().bold(),
                 Player::White => str.on_white().truecolor(0, 0, 0).bold(),
                 Player::None => str.normal().dimmed(),
@@ -173,11 +194,11 @@ impl std::fmt::Display for Board {
             "{}{sep}{} Bar: {} {}{sep}{} Off: {} {}{sep}{}",
             fmt_indices(13..=24, !f.alternate()),
             fmt_points(12..=23, !f.alternate()),
-            fmt_point(&self.bar[&perspective]),
-            fmt_point(&self.bar[&!perspective]),
+            fmt_point(self.bar(perspective)),
+            fmt_point(self.bar(!perspective)),
             fmt_points(0..=11, f.alternate()),
-            fmt_point(&self.off[&perspective]),
-            fmt_point(&self.off[&!perspective]),
+            fmt_point(self.off(perspective)),
+            fmt_point(self.off(!perspective)),
             fmt_indices(1..=12, f.alternate()),
         )?;
 
@@ -186,95 +207,38 @@ impl std::fmt::Display for Board {
 }
 
 #[derive(Clone, Debug)]
-pub(super) enum BoardPosition<'a> {
-    Bar(&'a RefCell<FreePoint>),
-    Off(&'a RefCell<FreePoint>),
-    Point(&'a RefCell<FixedPoint>),
-}
-
-impl<'a> BoardPosition<'a> {
-    pub fn effective_pos(&self) -> usize {
-        let error = "There is no effective position for `Player::None`.";
-        match self {
-            BoardPosition::Off(off) => match off.borrow().player {
-                Player::Black => 0,
-                Player::White => BOARD_SIZE + 1,
-                _ => panic!("{error}"),
-            },
-            BoardPosition::Bar(bar) => match bar.borrow().player {
-                Player::Black => BOARD_SIZE + 1,
-                Player::White => 0,
-                _ => panic!("{error}"),
-            },
-            BoardPosition::Point(point) => *point.borrow().pos() + 1,
-        }
-    }
+pub(super) enum BoardPosition {
+    Bar(Player),
+    Off(Player),
+    Point(usize),
 }
 
 #[derive(Clone, Copy, Debug)]
-pub(super) struct FreePoint {
-    count: u8,
-    player: Player,
+pub(super) struct Point {
+    pub effective_pos: usize,
+    pub count: u8,
+    pub player: Player,
 }
 
-impl FreePoint {
-    pub fn new(count: u8, player: Player) -> Self {
-        Self { count, player }
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub(super) struct FixedPoint {
-    pos: usize,
-    count: u8,
-    player: Player,
-}
-
-impl FixedPoint {
-    pub fn new(pos: usize, count: u8, player: Player) -> Self {
-        Self { pos, count, player }
-    }
-
-    pub fn pos(&self) -> &usize {
-        &self.pos
-    }
-}
-
-pub(super) trait Point {
-    fn count(&self) -> &u8;
-    fn count_mut(&mut self) -> &mut u8;
-
-    fn player(&self) -> &Player;
-    fn player_mut(&mut self) -> &mut Player;
-}
-
-macro_rules! impl_point {
-    ($type:ty) => {
-        impl Point for $type {
-            fn count(&self) -> &u8 {
-                &self.count
-            }
-
-            fn count_mut(&mut self) -> &mut u8 {
-                &mut self.count
-            }
-
-            fn player(&self) -> &Player {
-                &self.player
-            }
-
-            fn player_mut(&mut self) -> &mut Player {
-                &mut self.player
-            }
+impl Point {
+    pub fn new(effective_pos: usize, count: u8, player: Player) -> Self {
+        Self {
+            effective_pos,
+            count,
+            player,
         }
-    };
+    }
+
+    pub fn is_valid_direction(&self, to: Point) -> bool {
+        // println!("{}: {} -> {}", self.player, from_pos, to_pos);
+        match self.player {
+            Player::White => to.effective_pos > self.effective_pos,
+            Player::Black => to.effective_pos < self.effective_pos,
+            _ => panic!("There is no move direction for `Player::None`."),
+        }
+    }
+
+    pub fn distance(&self, to: Point) -> usize {
+        self.effective_pos.abs_diff(to.effective_pos)
+    }
 }
-
-impl_point!(FixedPoint);
-impl_point!(FreePoint);
-
-// macro_rules! point {
-//     () => {};
-// }
-
-// pub(super) use point;
