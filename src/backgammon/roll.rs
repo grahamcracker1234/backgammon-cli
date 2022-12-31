@@ -1,6 +1,8 @@
 use rand::Rng;
 use std::collections::HashMap;
 
+use super::Error;
+
 const COUNT: usize = 2;
 const SIDES: u8 = 6;
 
@@ -38,16 +40,13 @@ impl Roll {
             }
         }
 
-        // println!("roll: {:?}", roll.dice_freq);
-
         roll
     }
 
-    pub fn remove(&mut self, die: u8) -> Result<(), &'static str> {
-        // println!("remove: {:?} (die: {die})", self.dice_freq);
+    pub fn remove(&mut self, die: u8) -> Result<(), Error> {
         match self.dice_freq.get_mut(&die) {
             Some(die) if *die > 0 => *die -= 1,
-            _ => return Err("Cannot make move of that length."),
+            _ => return Err(Error::InvalidMoveLength(die)),
         }
         Ok(())
     }
@@ -59,7 +58,6 @@ impl Roll {
     }
 
     pub fn any_available(&self) -> bool {
-        // println!("available: {:?}", self.dice_freq);
         self.dice_freq.values().any(|&count| count > 0)
     }
 

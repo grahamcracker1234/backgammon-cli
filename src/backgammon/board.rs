@@ -3,7 +3,7 @@ use itertools::Itertools;
 use std::cell::RefCell;
 use std::ops::RangeInclusive;
 
-use super::player::Player;
+use super::{player::Player, Error};
 
 pub(super) const BOARD_SIZE: usize = 24;
 
@@ -37,48 +37,6 @@ impl Board {
         *points[offset - 5].borrow_mut() = Point::new(offset - 5 + 1, 5, Player::White);
 
         Self::from_points(points)
-    }
-
-    pub fn bar(&self, player: Player) -> &RefCell<Point> {
-        &self.bar[player as usize]
-    }
-
-    pub fn off(&self, player: Player) -> &RefCell<Point> {
-        &self.off[player as usize]
-    }
-
-    // pub fn totals(&self, player: Player) -> &u8 {
-    //     &self.totals[player as usize]
-    // }
-
-    // pub fn totals_mut(&mut self, player: Player) -> &mut u8 {
-    //     &mut self.totals[player as usize]
-    // }
-
-    // pub fn bar(&self, player: Player) -> &Point {
-    //     &self.bar[player as usize]
-    // }
-
-    // pub fn bar_mut(&mut self, player: Player) -> &mut Point {
-    //     &mut self.bar[player as usize]
-    // }
-
-    // pub fn off(&self, player: Player) -> &Point {
-    //     &self.off[player as usize]
-    // }
-
-    // pub fn off_mut(&mut self, player: Player) -> &mut Point {
-    //     &mut self.off[player as usize]
-    // }
-    pub fn convert_index(
-        notation_index: usize,
-        perspective: Player,
-    ) -> Result<usize, &'static str> {
-        match perspective {
-            Player::White => (BOARD_SIZE).checked_sub(notation_index),
-            _ => notation_index.checked_sub(1),
-        }
-        .ok_or("Position is not valid.")
     }
 
     fn from_points(points: [RefCell<Point>; BOARD_SIZE]) -> Self {
@@ -115,19 +73,24 @@ impl Board {
         }
     }
 
-    pub fn get_point(
-        &self,
-        index: usize,
-        perspective: Player,
-    ) -> Result<&RefCell<Point>, &'static str> {
-        let error = "Position is not valid.";
-        match perspective {
-            Player::White => self
-                .points
-                .get((BOARD_SIZE - 1).checked_sub(index).ok_or(error)?),
-            _ => self.points.get(index),
+    pub fn convert_index(notation_index: usize, perspective: Player) -> Result<usize, Error> {
+        let index = match perspective {
+            Player::White => (BOARD_SIZE).checked_sub(notation_index),
+            _ => notation_index.checked_sub(1),
+        };
+
+        match index {
+            Some(index) if index < BOARD_SIZE => Ok(index),
+            _ => Err(Error::InvalidNotationPosition(notation_index)),
         }
-        .ok_or(error)
+    }
+
+    pub fn bar(&self, player: Player) -> &RefCell<Point> {
+        &self.bar[player as usize]
+    }
+
+    pub fn off(&self, player: Player) -> &RefCell<Point> {
+        &self.off[player as usize]
     }
 
     // pub fn iter<'a>(&'a self) -> impl Iterator<Item = BoardPosition> {
@@ -137,10 +100,6 @@ impl Board {
     //         .chain(self.bar.values().map(|b| BoardPosition::Bar(b)))
     //         .chain(self.off.values().map(|o| BoardPosition::Off(o)))
     // }
-
-    pub fn is_bar_empty(&self, player: Player) -> bool {
-        self.bar(player).borrow().count == 0
-    }
 }
 
 impl std::fmt::Display for Board {
@@ -178,7 +137,7 @@ impl std::fmt::Display for Board {
         let fmt_points = |range: RangeInclusive<usize>, rev: bool| -> String {
             fmt_line!(
                 range,
-                |i| fmt_point(self.get_point(i, perspective).unwrap()),
+                |i| fmt_point(&self.points[Self::convert_index(i, perspective).unwrap()]),
                 rev
             )
         };
@@ -193,10 +152,10 @@ impl std::fmt::Display for Board {
             f,
             "{}{sep}{} Bar: {} {}{sep}{} Off: {} {}{sep}{}",
             fmt_indices(13..=24, !f.alternate()),
-            fmt_points(12..=23, !f.alternate()),
+            fmt_points(13..=24, !f.alternate()),
             fmt_point(self.bar(perspective)),
             fmt_point(self.bar(!perspective)),
-            fmt_points(0..=11, f.alternate()),
+            fmt_points(1..=12, f.alternate()),
             fmt_point(self.off(perspective)),
             fmt_point(self.off(!perspective)),
             fmt_indices(1..=12, f.alternate()),

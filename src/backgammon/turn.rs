@@ -2,8 +2,9 @@ use std::fmt::Display;
 
 use super::{
     board::{Board, BoardPosition},
+    game::Game,
     player::Player,
-    Game,
+    Error,
 };
 use itertools::Itertools;
 
@@ -17,7 +18,7 @@ impl Turn {
         Self { moves }
     }
 
-    pub fn from(notation: String, game: &Game) -> Result<Self, &'static str> {
+    pub fn from(notation: String, game: &Game) -> Result<Self, Error> {
         let re = regex::Regex::new(r"^(?:(?:\d+)|(?:bar))(?:/\d+)*(?:/(?:(?:\d+)|(?:off)))$")
             .expect("Regex is invalid");
 
@@ -26,7 +27,7 @@ impl Turn {
             .split_whitespace()
             .map(|group| match re.find(group) {
                 Some(m) => Ok(Self::get_move_group(m.as_str(), game)?),
-                None => Err("Invalid input."),
+                None => Err(Error::InvalidNotation(group.to_owned())),
             })
             .flatten_ok()
             .collect::<Result<Vec<_>, _>>();
@@ -37,7 +38,7 @@ impl Turn {
         }
     }
 
-    fn get_move_group(notation: &str, game: &Game) -> Result<Vec<Move>, &'static str> {
+    fn get_move_group(notation: &str, game: &Game) -> Result<Vec<Move>, Error> {
         let positions = notation
             .split('/')
             .map(|m| {
@@ -112,36 +113,8 @@ pub(super) struct Move {
 
 impl Move {
     pub fn new(player: Player, from: BoardPosition, to: BoardPosition) -> Self {
-        // if let BoardPosition::Bar(_) = to {
-        //     panic!("Cannot move onto the bar.")
-        // }
-
-        // if let BoardPosition::Off(_) = from {
-        //     panic!("Cannot move a piece after bearing it off.")
-        // }
-
         Self { player, from, to }
     }
-
-    // pub fn valid_direction(&self) -> bool {
-    //     if self.player == Player::None {
-    //         panic!("There is no move direction for `Player::None`.");
-    //     }
-
-    //     let from_pos = self.from.effective_pos();
-    //     let to_pos = self.to.effective_pos();
-
-    //     // println!("{}: {} -> {}", self.player, from_pos, to_pos);
-    //     match self.player {
-    //         Player::White => to_pos > from_pos,
-    //         Player::Black => to_pos < from_pos,
-    //         _ => unreachable!(),
-    //     }
-    // }
-
-    // pub fn distance(&self) -> usize {
-    //     self.from.effective_pos.abs_diff(self.to.effective_pos)
-    // }
 }
 
 impl Display for Move {
