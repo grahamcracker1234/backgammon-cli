@@ -12,6 +12,7 @@ use player::Player;
 use roll::Roll;
 use turn::{Move, Turn};
 
+#[derive(Clone)]
 pub struct Game {
     current_player: Player,
     current_roll: RefCell<Roll>,
@@ -34,13 +35,20 @@ impl Game {
 
             println!("\n{self}\n");
 
+            println!(
+                "{:?}",
+                Turn::get_available_moves(self)
+                    .map(|m| m.to_string())
+                    .collect::<Vec<_>>()
+            );
+
             let notation = self.get_notation();
-            let turn = match Turn::from(notation, &self) {
+            let turn = match Turn::from(notation, self) {
                 Ok(turn) => turn,
                 Err(error) => {
                     println!("{}", error.red().bold());
-                    self.board = saved_board;
-                    *self.current_roll.borrow_mut() = saved_roll;
+                    // self.board = saved_board;
+                    // *self.current_roll.borrow_mut() = saved_roll;
                     continue;
                 }
             };
@@ -98,7 +106,7 @@ impl Game {
             self.make_move(r#move)?;
         }
 
-        if self.current_roll.borrow().available() {
+        if self.current_roll.borrow().any_available() {
             return Err("Did not use all available moves.");
         }
 
@@ -122,8 +130,7 @@ impl Game {
             .remove(r#move.distance() as u8)?;
 
         // Ensure that if there is a piece in the bar it is moved.
-        if *self.board.bar[&r#move.player].borrow().count() > 0
-            && !matches!(r#move.from, BoardPosition::Bar(_))
+        if !self.board.is_empty_bar(&r#move.player) && !matches!(r#move.from, BoardPosition::Bar(_))
         {
             return Err("Attempted to move a piece while there is one in the bar.");
         }

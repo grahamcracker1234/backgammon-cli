@@ -52,7 +52,13 @@ impl Roll {
         Ok(())
     }
 
-    pub fn available(&self) -> bool {
+    pub fn available_rolls<'a>(&'a self) -> impl Iterator<Item = u8> + 'a {
+        self.dice_freq
+            .iter()
+            .flat_map(|(&k, &v)| vec![k; v as usize].into_iter())
+    }
+
+    pub fn any_available(&self) -> bool {
         // println!("available: {:?}", self.dice_freq);
         self.dice_freq.values().any(|&count| count > 0)
     }

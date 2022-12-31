@@ -108,6 +108,18 @@ impl Board {
         }
         .ok_or(error)
     }
+
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item = BoardPosition<'a>> {
+        self.points
+            .iter()
+            .map(|p| BoardPosition::Point(p))
+            .chain(self.bar.values().map(|b| BoardPosition::Bar(b)))
+            .chain(self.off.values().map(|o| BoardPosition::Off(o)))
+    }
+
+    pub fn is_empty_bar(&self, player: &Player) -> bool {
+        *self.bar[player].borrow().count() == 0
+    }
 }
 
 impl std::fmt::Display for Board {

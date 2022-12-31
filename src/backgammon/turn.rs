@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use super::{board::BoardPosition, player::Player, Game};
 use itertools::Itertools;
 
@@ -55,9 +57,48 @@ impl<'a> Turn<'a> {
                 .collect()),
         }
     }
+
+    pub fn get_available_moves(game: &'a mut Game) -> impl Iterator<Item = Move<'a>> {
+        // let game = game.clone();
+        let saved_board = game.board.clone();
+
+        game.board.iter().flat_map(|board_position| {
+            // game.board = saved_board.clone();
+            game.current_roll
+                .borrow()
+                .available_rolls()
+                .map(|roll| {
+                    let from_pos = board_position.effective_pos();
+
+                    let to_pos = from_pos + roll as usize;
+                    let notation = format!(
+                        "{}/{}",
+                        match board_position {
+                            BoardPosition::Bar(_) => "bar".to_string(),
+                            BoardPosition::Off(_) =>
+                                Err("Cannot move a piece after bearing it off.")?,
+                            BoardPosition::Point(_) => from_pos.to_string(),
+                        },
+                        match game.board.get_point(to_pos, game.current_player) {
+                            Ok(_) => to_pos,
+                            Err(error) => Err(error)?,
+                        }
+                    );
+
+                    let turn = Turn::from(notation, game)?;
+                    let moves = turn.moves.clone();
+
+                    game.take_turn(turn)?;
+                    Result::<_, &'static str>::Ok(moves)
+                })
+                .filter_map(Result::ok)
+                .flatten()
+                .collect::<Vec<_>>()
+        })
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(super) struct Move<'a> {
     pub player: Player,
     pub from: BoardPosition<'a>,
@@ -95,6 +136,25 @@ impl<'a> Move<'a> {
 
     pub fn distance(&self) -> usize {
         self.from.effective_pos().abs_diff(self.to.effective_pos())
+    }
+}
+
+impl Display for Move<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}/{}",
+            match self.from {
+                BoardPosition::Bar(_) => "bar".to_string(),
+                BoardPosition::Off(_) => panic!("Cannot move a piece after bearing it off."),
+                BoardPosition::Point(point) => (*point.borrow().pos() + 1).to_string(),
+            },
+            match self.to {
+                BoardPosition::Bar(_) => panic!("Cannot move onto the bar."),
+                BoardPosition::Off(_) => "off".to_string(),
+                BoardPosition::Point(point) => (*point.borrow().pos() + 1).to_string(),
+            }
+        )
     }
 }
 
