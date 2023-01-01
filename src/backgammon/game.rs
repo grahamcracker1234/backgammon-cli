@@ -127,13 +127,13 @@ impl Game {
         let mut from = match r#move.from {
             BoardPosition::Bar(player) => self.board.bar(player).borrow_mut(),
             BoardPosition::Off(_) => return Err(Error::MoveMadeFromBearingTable),
-            BoardPosition::Point(index) => self.board.points[index].borrow_mut(),
+            BoardPosition::Point(index) => self.board.point(index).borrow_mut(),
         };
 
         let mut to = match r#move.to {
             BoardPosition::Bar(_) => return Err(Error::MoveMadeToBar),
             BoardPosition::Off(player) => self.board.off(player).borrow_mut(),
-            BoardPosition::Point(index) => self.board.points[index].borrow_mut(),
+            BoardPosition::Point(index) => self.board.point(index).borrow_mut(),
         };
 
         // Ensure there is a piece to move.
@@ -147,14 +147,14 @@ impl Game {
         }
 
         // Ensure the player is moving in the correct direction.
-        if !from.is_valid_direction(*to) {
+        if !from.is_valid_direction(&to) {
             return Err(Error::InvalidMoveDirection);
         }
 
         // Ensures move is possible from the dice rolls.
         self.current_roll
             .borrow_mut()
-            .remove(from.distance(*to) as u8)?;
+            .remove(from.distance(&to) as u8)?;
 
         // Ensure that a piece is only moved onto another player's piece if the other player's piece the only piece on that space.
         if to.player == !r#move.player {

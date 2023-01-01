@@ -9,7 +9,7 @@ pub(super) const BOARD_SIZE: usize = 24;
 
 #[derive(Clone)]
 pub(super) struct Board {
-    pub points: [RefCell<Point>; BOARD_SIZE],
+    points: [RefCell<Point>; BOARD_SIZE],
     totals: [u8; 2],
     bar: [RefCell<Point>; 2],
     off: [RefCell<Point>; 2],
@@ -93,6 +93,10 @@ impl Board {
         &self.off[player as usize]
     }
 
+    pub fn point(&self, index: usize) -> &RefCell<Point> {
+        &self.points[index]
+    }
+
     // pub fn iter<'a>(&'a self) -> impl Iterator<Item = BoardPosition> {
     //     self.points
     //         .iter()
@@ -172,7 +176,17 @@ pub(super) enum BoardPosition {
     Point(usize),
 }
 
-#[derive(Clone, Copy, Debug)]
+impl BoardPosition {
+    pub fn point<'a>(&self, board: &'a Board) -> &'a RefCell<Point> {
+        match *self {
+            BoardPosition::Bar(player) => board.bar(player),
+            BoardPosition::Off(player) => board.off(player),
+            BoardPosition::Point(index) => board.point(index),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub(super) struct Point {
     pub effective_pos: usize,
     pub count: u8,
@@ -188,7 +202,7 @@ impl Point {
         }
     }
 
-    pub fn is_valid_direction(&self, to: Point) -> bool {
+    pub fn is_valid_direction(&self, to: &Point) -> bool {
         // println!("{}: {} -> {}", self.player, from_pos, to_pos);
         match self.player {
             Player::White => to.effective_pos > self.effective_pos,
@@ -197,7 +211,24 @@ impl Point {
         }
     }
 
-    pub fn distance(&self, to: Point) -> usize {
+    pub fn distance(&self, to: &Point) -> usize {
         self.effective_pos.abs_diff(to.effective_pos)
     }
 }
+
+// Alternate implementations, consider for the future.
+//
+// #[derive(Clone, Debug)]
+// pub(super) enum PositionType {
+//     Bar,
+//     Off,
+//     Point,
+// }
+
+// #[derive(Clone, Debug)]
+// pub(super) struct Position {
+//     pub effective_pos: usize,
+//     pub count: u8,
+//     pub player: Player,
+//     pub r#type: PositionType
+// }
