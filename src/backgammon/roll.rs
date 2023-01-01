@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use rand::Rng;
 use std::collections::HashMap;
 
@@ -72,5 +73,19 @@ impl Roll {
                 return dice;
             }
         }
+    }
+}
+
+#[allow(unstable_name_collisions)]
+impl std::fmt::Display for Roll {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(
+            &self
+                .dice
+                .into_iter()
+                .map(|die| die.to_string())
+                .intersperse("-".to_string())
+                .collect::<String>(),
+        )
     }
 }

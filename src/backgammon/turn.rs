@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use itertools::Itertools;
 
 use super::{
     board::{Board, BoardPosition},
@@ -6,7 +6,6 @@ use super::{
     player::Player,
     Error,
 };
-use itertools::Itertools;
 
 #[derive(Debug)]
 pub(super) struct Turn {
@@ -39,7 +38,20 @@ impl Turn {
     }
 
     fn get_move_group(notation: &str, game: &Game) -> Result<Vec<Move>, Error> {
-        let positions = notation
+        let positions = Self::get_board_positions(notation, game);
+
+        match positions {
+            Err(error) => return Err(error),
+            Ok(positions) => Ok(positions
+                .into_iter()
+                .tuple_windows()
+                .map(|(from, to)| Move::new(game.current_player, from, to))
+                .collect()),
+        }
+    }
+
+    fn get_board_positions(notation: &str, game: &Game) -> Result<Vec<BoardPosition>, Error> {
+        notation
             .split('/')
             .map(|m| {
                 let player = game.current_player;
@@ -52,56 +64,116 @@ impl Turn {
                     }
                 })
             })
-            .collect::<Result<Vec<_>, _>>();
-
-        match positions {
-            Err(error) => return Err(error),
-            Ok(positions) => Ok(positions
-                .into_iter()
-                .tuple_windows()
-                .map(|(from, to)| Move::new(game.current_player, from, to))
-                .collect()),
-        }
+            .collect()
     }
 
-    // pub fn get_available_moves(game: &mut Game) -> impl Iterator<Item = Move> {
-    //     // let game = game.clone();
-    //     let saved_board = game.board.clone();
+    pub fn get_available_moves<'a>(mut game: Game) -> impl Iterator<Item = Move> + 'a {
+        // let game = game.clone();
+        let saved_game = game.clone();
+        let board_iter = game.board.iter().map(|x| x.clone());
 
-    //     game.board.iter().flat_map(|board_position| {
-    //         // game.board = saved_board.clone();
-    //         game.current_roll
-    //             .borrow()
-    //             .available_rolls()
-    //             .map(|roll| {
-    //                 let from_pos = board_position.effective_pos();
+        board_iter.flat_map(move |board_position| {
+            let rolls_iter = game
+                .current_roll
+                .borrow()
+                .available_rolls()
+                .map(|x| x.clone())
+                .collect::<Vec<_>>()
+                .into_iter();
 
-    //                 let to_pos = from_pos + roll as usize;
-    //                 let notation = format!(
-    //                     "{}/{}",
-    //                     match board_position {
-    //                         BoardPosition::Bar(_) => "bar".to_string(),
-    //                         BoardPosition::Off(_) =>
-    //                             Err("Cannot move a piece after bearing it off.")?,
-    //                         BoardPosition::Point(_) => from_pos.to_string(),
-    //                     },
-    //                     match game.board.get_point(to_pos, game.current_player) {
-    //                         Ok(_) => to_pos,
-    //                         Err(error) => Err(error)?,
-    //                     }
-    //                 );
+            rolls_iter
+                .map(|roll| {
+                    let from = board_position.clone();
 
-    //                 let turn = Turn::from(notation, game)?;
-    //                 let moves = turn.moves.clone();
+                    let point = board_position.point(&game.board).borrow();
+                    if game.current_player != point.player {
+                        return Err(Error::MoveMadeOutOfTurn);
+                    }
 
-    //                 game.take_turn(turn)?;
-    //                 Result::<_, &'static str>::Ok(moves)
-    //             })
-    //             .filter_map(Result::ok)
-    //             .flatten()
-    //             .collect::<Vec<_>>()
-    //     })
-    // }
+                    let r#move = match point.player {
+                        Player::Black => {
+                            let Some(index) = point.effective_pos.checked_sub(roll as usize + 1) else {
+                                return Err(Error::InvalidNotationPosition(point.effective_pos));
+                            };
+
+                            let to = BoardPosition::Point(index);
+                            Move::new(point.player, from, to)
+                        },
+                        Player::White => {
+                            let Some(index) = point.effective_pos.checked_add(roll as usize - 1) else {
+                                return Err(Error::InvalidNotationPosition(point.effective_pos));
+                            };
+
+                            let to = BoardPosition::Point(index);
+                            Move::new(point.player, from, to)
+                        },
+                        _ => return Err(Error::MoveMadeOutOfTurn)
+                    };
+
+                    // let Some(index) = point.effective_pos.checked_sub(roll as usize + 1) else {
+                    //     return Err(Error::InvalidNotationPosition(point.effective_pos));
+                    // };
+
+                    // let to = BoardPosition::Point(index);
+
+                    // let to = match point.player {
+                    //     Player::None => return Err(Error::MoveMadeOutOfTurn),
+                    //     Player::Black => {
+                    //         let Some(index) = point.effective_pos.checked_sub(1) else {
+                    //             return Err(Error::InvalidNotationPosition(point.effective_pos));
+                    //         };
+                    //         let Some(index) = index.checked_sub(roll as usize) else {
+                    //             return Err(Error::InvalidNotationPosition(point.effective_pos));
+                    //         };
+                    //         BoardPosition::Point(index)
+                    //     }
+                    //     Player::White => {
+                    //         let Some(index) = point.effective_pos.checked_sub(1) else {
+                    //             return Err(Error::InvalidNotationPosition(point.effective_pos));
+                    //         };
+                    //         let index = index + roll as usize;
+                    //         BoardPosition::Point(index)
+                    //     }
+                    // };
+
+                    // let r#move = Move::new(point.player, from, to);
+                    // let notation = format!(
+                    //     "{}/{}",
+                    //     match board_position {
+                    //         BoardPosition::Bar(_) => "bar".to_string(),
+                    //         BoardPosition::Off(_) => Err(Error::MoveMadeFromBearingTable)?,
+                    //         BoardPosition::Point(_) => from_pos.to_string(),
+                    //     },
+                    //     match Board::convert_index(to_pos, game.current_player) {
+                    //         Ok(_) => to_pos,
+                    //         Err(error) => Err(error)?,
+                    //     }
+                    // );
+
+                    // let turn = Turn::from(notation, &game)?;
+                    // let r#move = turn.moves[0].clone();
+
+                    // game.take_turn(turn)?;
+                    drop(point);
+                    if let Err(error) = game.make_move(r#move.clone()) {
+                        println!("{error}");
+                        return Err(error);
+                    }
+                    game = saved_game.clone();
+
+                    Ok::<_, Error>(r#move)
+                })
+                // .filter_map(Result::ok)
+                // .flatten()
+                // .collect::<Vec<_>>();
+                .flatten()
+                .collect::<Vec<_>>()
+        })
+        // .flatten()
+        // .filter_map(Result::ok)
+        // .flatten()
+        // .collect::<Vec<_>>();
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -117,7 +189,7 @@ impl Move {
     }
 }
 
-impl Display for Move {
+impl std::fmt::Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -125,12 +197,14 @@ impl Display for Move {
             match self.from {
                 BoardPosition::Bar(_) => "bar".to_string(),
                 BoardPosition::Off(_) => panic!("Cannot move a piece after bearing it off."),
-                BoardPosition::Point(index) => (index + 1).to_string(),
+                BoardPosition::Point(index) =>
+                    format!("{:?}", Board::convert_notation(index, self.player).unwrap()),
             },
             match self.to {
                 BoardPosition::Bar(_) => panic!("Cannot move onto the bar."),
                 BoardPosition::Off(_) => "off".to_string(),
-                BoardPosition::Point(index) => (index + 1).to_string(),
+                BoardPosition::Point(index) =>
+                    format!("{:?}", Board::convert_notation(index, self.player).unwrap()),
             }
         )
     }

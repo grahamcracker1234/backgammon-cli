@@ -9,6 +9,7 @@ pub use game::Game;
 #[derive(Debug)]
 enum Error {
     InvalidNotationPosition(usize),
+    InvalidIndexPosition(usize),
     InvalidNotation(String),
     InvalidMoveLength(u8),
     IncompleteTurn,
@@ -26,6 +27,7 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::InvalidNotationPosition(pos) => write!(f, "position '{pos}' is not valid"),
+            Error::InvalidIndexPosition(pos) => write!(f, "position '{pos}' is not valid"),
             Error::InvalidNotation(notation) => write!(f, "notation '{notation}' is not valid"),
             Error::InvalidMoveLength(len) => write!(f, "move of length '{len}' is not valid"),
             Error::IncompleteTurn => write!(f, "did not use all possible moves"),

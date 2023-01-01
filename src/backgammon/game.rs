@@ -31,14 +31,14 @@ impl Game {
             let saved_board = self.board.clone();
             let saved_roll = self.current_roll.borrow().clone();
 
-            println!("\n{self}\n");
+            println!("\n{self}\n{}", self.current_roll.borrow());
 
-            // println!(
-            //     "{:?}",
-            //     Turn::get_available_moves(self)
-            //         .map(|m| m.to_string())
-            //         .collect::<Vec<_>>()
-            // );
+            println!(
+                "{:?}",
+                Turn::get_available_moves(self.clone())
+                    .map(|m| m.to_string())
+                    .collect::<Vec<_>>()
+            );
 
             let notation = self.get_notation();
             let turn = match Turn::from(notation, self) {
@@ -75,13 +75,7 @@ impl Game {
                     Player::None =>
                         panic!("Attempting to get moves from '{:?}'.", self.current_player),
                 },
-                self.current_roll
-                    .borrow()
-                    .dice
-                    .into_iter()
-                    .map(|die| die.to_string())
-                    .intersperse("-".to_string())
-                    .collect::<String>()
+                self.current_roll.borrow()
             )
             .green()
             .italic()
@@ -99,7 +93,7 @@ impl Game {
         input
     }
 
-    fn take_turn(&mut self, turn: Turn) -> Result<(), Error> {
+    pub(super) fn take_turn(&mut self, turn: Turn) -> Result<(), Error> {
         for r#move in turn.moves {
             self.make_move(r#move)?;
         }
@@ -111,7 +105,7 @@ impl Game {
         Ok(())
     }
 
-    fn make_move(&mut self, r#move: Move) -> Result<(), Error> {
+    pub(super) fn make_move(&mut self, r#move: Move) -> Result<(), Error> {
         // Ensure current player is making the move.
         if self.current_player != r#move.player {
             return Err(Error::MoveMadeOutOfTurn);

@@ -85,6 +85,20 @@ impl Board {
         }
     }
 
+    pub fn convert_notation(index: usize, perspective: Player) -> Result<usize, Error> {
+        let notation_index = match perspective {
+            Player::White => (BOARD_SIZE).checked_sub(index),
+            _ => index.checked_add(1),
+        };
+
+        match notation_index {
+            Some(notation_index) if notation_index <= BOARD_SIZE && notation_index >= 1 => {
+                Ok(notation_index)
+            }
+            _ => Err(Error::InvalidIndexPosition(index)),
+        }
+    }
+
     pub fn bar(&self, player: Player) -> &RefCell<Point> {
         &self.bar[player as usize]
     }
@@ -97,13 +111,18 @@ impl Board {
         &self.points[index]
     }
 
-    // pub fn iter<'a>(&'a self) -> impl Iterator<Item = BoardPosition> {
-    //     self.points
-    //         .iter()
-    //         .map(|p| BoardPosition::Point(p))
-    //         .chain(self.bar.values().map(|b| BoardPosition::Bar(b)))
-    //         .chain(self.off.values().map(|o| BoardPosition::Off(o)))
-    // }
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item = BoardPosition> {
+        (0..self.points.len())
+            .map(|index| BoardPosition::Point(index))
+            .chain([
+                BoardPosition::Bar(Player::Black),
+                BoardPosition::Bar(Player::White),
+            ])
+            .chain([
+                BoardPosition::Off(Player::Black),
+                BoardPosition::Off(Player::White),
+            ])
+    }
 }
 
 impl std::fmt::Display for Board {
@@ -217,7 +236,6 @@ impl Point {
 }
 
 // Alternate implementations, consider for the future.
-//
 // #[derive(Clone, Debug)]
 // pub(super) enum PositionType {
 //     Bar,
@@ -230,5 +248,29 @@ impl Point {
 //     pub effective_pos: usize,
 //     pub count: u8,
 //     pub player: Player,
-//     pub r#type: PositionType
+//     pub r#type: PositionType,
+// }
+
+// impl Position {
+//     pub fn new(effective_pos: usize, count: u8, player: Player, r#type: PositionType) -> Self {
+//         Self {
+//             effective_pos,
+//             count,
+//             player,
+//             r#type,
+//         }
+//     }
+
+//     pub fn is_valid_direction(&self, to: &Self) -> bool {
+//         // println!("{}: {} -> {}", self.player, from_pos, to_pos);
+//         match self.player {
+//             Player::White => to.effective_pos > self.effective_pos,
+//             Player::Black => to.effective_pos < self.effective_pos,
+//             _ => panic!("There is no move direction for `Player::None`."),
+//         }
+//     }
+
+//     pub fn distance(&self, to: &Self) -> usize {
+//         self.effective_pos.abs_diff(to.effective_pos)
+//     }
 // }
