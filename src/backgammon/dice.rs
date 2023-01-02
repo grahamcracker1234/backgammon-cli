@@ -2,13 +2,13 @@ use itertools::Itertools;
 use rand::Rng;
 use std::collections::HashMap;
 
-use super::Error;
+use crate::backgammon::Error;
 
 const COUNT: usize = 2;
 const SIDES: u8 = 6;
 
 #[derive(Clone)]
-pub(super) struct Dice {
+pub(crate) struct Dice {
     dice: [u8; COUNT],
     cast_freq: HashMap<u8, u8>,
 }
@@ -85,13 +85,35 @@ impl Dice {
 #[allow(unstable_name_collisions)]
 impl std::fmt::Display for Dice {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(
-            &self
-                .dice
-                .into_iter()
-                .map(|die| die.to_string())
-                .intersperse("-".to_string())
-                .collect::<String>(),
-        )
+        if f.alternate() {
+            f.write_str(
+                &self
+                    .dice
+                    .into_iter()
+                    .map(|die| {
+                        match die {
+                            1 => "\u{2680}",
+                            2 => "\u{2681}",
+                            3 => "\u{2682}",
+                            4 => "\u{2683}",
+                            5 => "\u{2684}",
+                            6 => "\u{2685}",
+                            _ => "\u{1F3B2}",
+                        }
+                        .to_string()
+                    })
+                    .intersperse("-".to_string())
+                    .collect::<String>(),
+            )
+        } else {
+            f.write_str(
+                &self
+                    .dice
+                    .into_iter()
+                    .map(|die| die.to_string())
+                    .intersperse("-".to_string())
+                    .collect::<String>(),
+            )
+        }
     }
 }

@@ -1,13 +1,13 @@
 mod board;
 mod dice;
 mod game;
+mod notation;
 mod player;
-mod turn;
 
 pub use game::Game;
 
 #[derive(Debug)]
-enum Error {
+pub(crate) enum Error {
     InvalidNotationPosition(usize),
     InvalidIndexPosition(usize),
     InvalidNotation(String),

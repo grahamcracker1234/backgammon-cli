@@ -1,12 +1,14 @@
 use colored::Colorize;
 
-use super::{
-    board::{Board, BoardPosition},
+use crate::backgammon::{
+    board::{Board, Position},
     dice::Dice,
+    notation::{Notation, Play, Turn},
     player::Player,
-    turn::{Play, Turn},
     Error,
 };
+
+use super::board::BOARD_SIZE;
 
 #[derive(Clone)]
 pub struct Game {
@@ -39,7 +41,7 @@ impl Game {
             // );
 
             let notation = self.get_notation();
-            let turn = match Turn::from(notation, self) {
+            let turn = match notation.turn(self.current_player) {
                 Ok(turn) => turn,
                 Err(error) => {
                     println!("{}", error.to_string().red().bold());
@@ -59,7 +61,7 @@ impl Game {
     }
 
     #[allow(unstable_name_collisions)]
-    fn get_notation(&self) -> String {
+    fn get_notation(&self) -> Notation {
         use std::{io, io::Write};
         print!(
             "{}",
@@ -86,18 +88,19 @@ impl Game {
             .read_line(&mut input)
             .expect("Failed to read input");
 
-        input
+        Notation(input)
     }
 
     pub(super) fn take_turn(&mut self, turn: Turn) -> Result<(), Error> {
-        for play in turn.plays {
+        let Turn(plays) = turn;
+        for play in plays {
             if let Err(error) = self.check_play(&play) {
                 return Err(error);
             }
             self.make_play(&play);
         }
 
-        if Turn::get_available_plays(&self).collect::<Vec<_>>().len() > 0 {
+        if self.get_available_plays().collect::<Vec<_>>().len() > 0 {
             return Err(Error::IncompleteTurn);
         }
 
@@ -109,28 +112,27 @@ impl Game {
     }
 
     pub(super) fn check_play(&self, play: &Play) -> Result<(), Error> {
-        // Ensure current player is making thplay.
+        // Ensure current player is playing.
         if self.current_player != play.player {
             return Err(Error::PlayMadeOutOfTurn);
         }
 
         // Ensure that if there is a piece in the bar it is played.
-        if self.board.bar(play.player).borrow().count > 0
-            && !matches!(play.from, BoardPosition::Bar(_))
+        if self.board.bar(play.player).borrow().count > 0 && !matches!(play.from, Position::Bar(_))
         {
             return Err(Error::PlayMadeWithBarFilled);
         }
 
         let from = match play.from {
-            BoardPosition::Bar(player) => self.board.bar(player).borrow(),
-            BoardPosition::Rail(_) => return Err(Error::PlayMadeFromRail),
-            BoardPosition::Point(index) => self.board.point(index).borrow(),
+            Position::Bar(player) => self.board.bar(player).borrow(),
+            Position::Rail(_) => return Err(Error::PlayMadeFromRail),
+            Position::Point(index) => self.board.point(index).borrow(),
         };
 
         let to = match play.to {
-            BoardPosition::Bar(_) => return Err(Error::PlayMadeToBar),
-            BoardPosition::Rail(player) => self.board.off(player).borrow(),
-            BoardPosition::Point(index) => self.board.point(index).borrow(),
+            Position::Bar(_) => return Err(Error::PlayMadeToBar),
+            Position::Rail(player) => self.board.rail(player).borrow(),
+            Position::Point(index) => self.board.point(index).borrow(),
         };
 
         // Ensure there is a piece to play.
@@ -180,7 +182,7 @@ impl Game {
         to.count += 1;
 
         // Reset the player of the previous position if it is empty and not from the bar
-        if from.count == 0 && !matches!(play.from, BoardPosition::Bar(_)) {
+        if from.count == 0 && !matches!(play.from, Position::Bar(_)) {
             from.player = Player::None;
         }
     }
@@ -188,6 +190,59 @@ impl Game {
     fn change_turn(&mut self) {
         self.current_roll.reroll();
         self.current_player.switch();
+    }
+
+    fn get_available_plays<'a>(&'a self) -> impl Iterator<Item = Play> + 'a {
+        let board_iter = (0..BOARD_SIZE)
+            .map(|index| Position::Point(index))
+            .chain([Position::Bar(Player::Black), Position::Bar(Player::White)])
+            .map(|x| x.clone());
+
+        board_iter.flat_map(move |board_position| {
+            let rolls_iter = self
+                .current_roll
+                .available_rolls()
+                .map(|x| x.clone())
+                .collect::<Vec<_>>()
+                .into_iter();
+
+            rolls_iter
+                .map(|roll| {
+                    let from = board_position.clone();
+
+                    let point = board_position.point(&self.board).borrow();
+                    if self.current_player != point.player {
+                        return Err(Error::PlayMadeOutOfTurn);
+                    }
+
+                    let play = match point.player {
+                        Player::Black => match point.position.checked_sub(roll as usize + 1) {
+                            Some(index) if index < BOARD_SIZE => {
+                                let to = Position::Point(index);
+                                Play::new(point.player, from, to)
+                            }
+                            _ => return Err(Error::InvalidNotationPosition(point.position)),
+                        },
+                        Player::White => match point.position.checked_add(roll as usize - 1) {
+                            Some(index) if index < BOARD_SIZE => {
+                                let to = Position::Point(index);
+                                Play::new(point.player, from, to)
+                            }
+                            _ => return Err(Error::InvalidNotationPosition(point.position)),
+                        },
+                        _ => return Err(Error::PlayMadeOutOfTurn),
+                    };
+                    drop(point);
+                    println!("{}", play);
+                    if let Err(error) = self.check_play(&play) {
+                        return Err(error);
+                    }
+
+                    Ok::<_, Error>(play)
+                })
+                .flatten()
+                .collect::<Vec<_>>()
+        })
     }
 }
 
