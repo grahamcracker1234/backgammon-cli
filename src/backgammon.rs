@@ -6,7 +6,7 @@ mod player;
 
 pub use game::Game;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub(crate) enum Error {
     InvalidNotationPosition(usize),
     InvalidIndexPosition(usize),

@@ -151,7 +151,7 @@ impl std::fmt::Display for Board {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Position {
     Bar(Player),
     Rail(Player),
