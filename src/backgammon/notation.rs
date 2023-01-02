@@ -1,7 +1,7 @@
 use itertools::Itertools;
 
 use crate::backgammon::{
-    board::{Position, BOARD_SIZE},
+    board::{Board, Position, BOARD_SIZE},
     player::Player,
     Error,
 };
@@ -106,6 +106,17 @@ pub(crate) struct Play {
 impl Play {
     pub fn new(player: Player, from: Position, to: Position) -> Self {
         Self { player, from, to }
+    }
+
+    pub fn is_valid_direction(&self, board: &Board) -> bool {
+        let to = self.to.point(board).borrow();
+        let from = self.from.point(board).borrow();
+
+        match self.player {
+            Player::White => to.position > from.position,
+            Player::Black => to.position < from.position,
+            _ => panic!("There is no move direction for `Player::None`."),
+        }
     }
 }
 

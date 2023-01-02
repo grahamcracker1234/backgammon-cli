@@ -184,14 +184,13 @@ impl Point {
         }
     }
 
-    pub fn is_valid_direction(&self, to: &Point) -> bool {
-        // println!("{}: {} -> {}", self.player, from_pos, to_pos);
-        match self.player {
-            Player::White => to.position > self.position,
-            Player::Black => to.position < self.position,
-            _ => panic!("There is no move direction for `Player::None`."),
-        }
-    }
+    // pub fn is_valid_direction(&self, to: &Point) -> bool {
+    //     match self.player {
+    //         Player::White => to.position > self.position,
+    //         Player::Black => to.position < self.position,
+    //         _ => panic!("There is no move direction for `Player::None`."),
+    //     }
+    // }
 
     pub fn distance(&self, to: &Point) -> usize {
         self.position.abs_diff(to.position)

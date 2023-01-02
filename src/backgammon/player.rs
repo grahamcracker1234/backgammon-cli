@@ -40,3 +40,22 @@ impl std::fmt::Display for Player {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn integer_values() {
+        assert_eq!(Player::Black as usize, 0);
+        assert_eq!(Player::White as usize, 1);
+        assert_eq!(Player::None as usize, 2);
+    }
+
+    #[test]
+    fn not() {
+        assert_eq!(!Player::Black, Player::White);
+        assert_eq!(!Player::White, Player::Black);
+        assert_eq!(!Player::None, Player::None);
+    }
+}

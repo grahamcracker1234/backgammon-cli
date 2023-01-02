@@ -121,17 +121,18 @@ impl Game {
             return Err(Error::PlayMadeWithBarFilled);
         }
 
-        let from = match play.from {
-            Position::Bar(player) => self.board.bar(player).borrow(),
-            Position::Rail(_) => return Err(Error::PlayMadeFromRail),
-            Position::Point(index) => self.board.point(index).borrow(),
-        };
+        // Ensure that piece is not taken from the rail.
+        if matches!(play.from, Position::Rail(_)) {
+            return Err(Error::PlayMadeFromRail);
+        }
 
-        let to = match play.to {
-            Position::Bar(_) => return Err(Error::PlayMadeToBar),
-            Position::Rail(player) => self.board.rail(player).borrow(),
-            Position::Point(index) => self.board.point(index).borrow(),
-        };
+        // Ensure that piece is not going to the bar.
+        if matches!(play.to, Position::Bar(_)) {
+            return Err(Error::PlayMadeToBar);
+        }
+
+        let from = play.from.point(&self.board).borrow();
+        let to = play.to.point(&self.board).borrow();
 
         // Ensure there is a piece to play.
         if from.count == 0 {
@@ -144,7 +145,7 @@ impl Game {
         }
 
         // Ensure the player is moving in the correct direction.
-        if !from.is_valid_direction(&to) {
+        if !play.is_valid_direction(&self.board) {
             return Err(Error::InvalidPlayDirection);
         }
 
@@ -154,7 +155,7 @@ impl Game {
         }
 
         // Ensure play is possible from the dice rolls.
-        let len = from.distance(&to) as u8;
+        let len = to.distance(&from) as u8;
         if !self.current_roll.check(len) {
             return Err(Error::InvalidPlayLength(len));
         }
@@ -166,10 +167,11 @@ impl Game {
         let mut to = play.to.point(&self.board).borrow_mut();
         let mut from = play.from.point(&self.board).borrow_mut();
 
-        // Ensure play is possible from the dice rolls.
-        self.current_roll.remove(from.distance(&to) as u8);
+        // Remove possible play from the dice rolls.
+        let len = to.distance(&from) as u8;
+        self.current_roll.remove(len);
 
-        // Ensure that a piece is only played onto another player's piece if the other player's piece the only piece on that space.
+        // If there is a blot where the player is moving to, then send it to their bar.
         if to.player == !play.player && to.count == 1 {
             self.board.bar(to.player).borrow_mut().count += 1;
         }
