@@ -11,16 +11,16 @@ enum Error {
     InvalidNotationPosition(usize),
     InvalidIndexPosition(usize),
     InvalidNotation(String),
-    InvalidMoveLength(u8),
+    InvalidPlayLength(u8),
     IncompleteTurn,
-    MoveMadeOutOfTurn,
-    MoveMadeWithBarFilled,
-    MoveMadeToBar,
-    MoveMadeFromBearingTable,
-    MoveMadeFromEmptyPoint,
-    MoveMadeWithOpposingPiece,
-    InvalidMoveDirection,
-    MoveMadeOntoOpposingPiece,
+    PlayMadeOutOfTurn,
+    PlayMadeWithBarFilled,
+    PlayMadeToBar,
+    PlayMadeFromRail,
+    PlayMadeFromEmptyPoint,
+    PlayMadeWithOpposingPiece,
+    InvalidPlayDirection,
+    PlayMadeOntoOpposingPiece,
 }
 
 impl std::fmt::Display for Error {
@@ -29,23 +29,23 @@ impl std::fmt::Display for Error {
             Error::InvalidNotationPosition(pos) => write!(f, "position '{pos}' is not valid"),
             Error::InvalidIndexPosition(pos) => write!(f, "position '{pos}' is not valid"),
             Error::InvalidNotation(notation) => write!(f, "notation '{notation}' is not valid"),
-            Error::InvalidMoveLength(len) => write!(f, "move of length '{len}' is not valid"),
-            Error::IncompleteTurn => write!(f, "did not use all possible moves"),
-            Error::MoveMadeOutOfTurn => write!(f, "only the current player can move"),
-            Error::MoveMadeWithBarFilled => {
-                write!(f, "attempted to move a piece while there is one in the bar")
+            Error::InvalidPlayLength(len) => write!(f, "play of length '{len}' is not valid"),
+            Error::IncompleteTurn => write!(f, "did not use all possible plays"),
+            Error::PlayMadeOutOfTurn => write!(f, "only the current player can play"),
+            Error::PlayMadeWithBarFilled => {
+                write!(f, "attempted to play a piece while there is one in the bar")
             }
-            Error::MoveMadeFromBearingTable => {
-                write!(f, "cannot move a piece after bearing it off")
+            Error::PlayMadeFromRail => {
+                write!(f, "cannot play a piece from the rail after bearing it off")
             }
-            Error::MoveMadeToBar => write!(f, "cannot move onto the bar"),
-            Error::MoveMadeFromEmptyPoint => write!(f, "attempted to move nonexistent piece"),
-            Error::MoveMadeWithOpposingPiece => {
-                write!(f, "attempted to move another player's piece")
+            Error::PlayMadeToBar => write!(f, "cannot play onto the bar"),
+            Error::PlayMadeFromEmptyPoint => write!(f, "attempted to play nonexistent piece"),
+            Error::PlayMadeWithOpposingPiece => {
+                write!(f, "attempted to play another player's piece")
             }
-            Error::InvalidMoveDirection => write!(f, "attempted to move backwards"),
-            Error::MoveMadeOntoOpposingPiece => {
-                write!(f, "attempted to illegally move onto another player")
+            Error::InvalidPlayDirection => write!(f, "attempted to play backwards"),
+            Error::PlayMadeOntoOpposingPiece => {
+                write!(f, "attempted to illegally play onto another player")
             }
         }
     }

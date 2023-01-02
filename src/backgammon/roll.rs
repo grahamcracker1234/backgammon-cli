@@ -54,7 +54,7 @@ impl Roll {
     pub fn remove(&mut self, die: u8) {
         match self.dice_freq.get_mut(&die) {
             Some(count) if *count > 0 => *count -= 1,
-            _ => panic!("{}", Error::InvalidMoveLength(die)),
+            _ => panic!("{}", Error::InvalidPlayLength(die)),
         }
     }
 

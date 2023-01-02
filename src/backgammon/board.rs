@@ -10,9 +10,9 @@ pub(super) const BOARD_SIZE: usize = 24;
 #[derive(Clone)]
 pub(super) struct Board {
     points: [RefCell<Point>; BOARD_SIZE],
-    totals: [u8; 2],
     bar: [RefCell<Point>; 2],
     off: [RefCell<Point>; 2],
+    // totals: [u8; 2],
 }
 
 impl Board {
@@ -40,26 +40,28 @@ impl Board {
     }
 
     fn from_points(points: [RefCell<Point>; BOARD_SIZE]) -> Self {
-        let totals = [
-            points
-                .iter()
-                .filter_map(|p| match p.borrow().player {
-                    Player::Black => Some(p.borrow().count),
-                    _ => None,
-                })
-                .sum(),
-            points
-                .iter()
-                .filter_map(|p| match p.borrow().player {
-                    Player::White => Some(p.borrow().count),
-                    _ => None,
-                })
-                .sum(),
-        ];
+        // let totals = [
+        //     points
+        //         .iter()
+        //         .filter_map(|p| match p.borrow().player {
+        //             Player::Black => Some(p.borrow().count),
+        //             _ => None,
+        //         })
+        //         .sum(),
+        //     points
+        //         .iter()
+        //         .filter_map(|p| match p.borrow().player {
+        //             Player::White => Some(p.borrow().count),
+        //             _ => None,
+        //         })
+        //         .sum(),
+        // ];
+
         let bar = [
             RefCell::new(Point::new(BOARD_SIZE + 1, 0, Player::Black)),
             RefCell::new(Point::new(0, 0, Player::White)),
         ];
+
         let off = [
             RefCell::new(Point::new(0, 0, Player::Black)),
             RefCell::new(Point::new(BOARD_SIZE + 1, 0, Player::White)),
@@ -67,9 +69,9 @@ impl Board {
 
         Self {
             points,
-            totals,
             bar,
             off,
+            // totals,
         }
     }
 
@@ -178,7 +180,7 @@ impl std::fmt::Display for Board {
 #[derive(Clone, Debug)]
 pub(super) enum BoardPosition {
     Bar(Player),
-    Off(Player),
+    Rail(Player),
     Point(usize),
 }
 
@@ -186,7 +188,7 @@ impl BoardPosition {
     pub fn point<'a>(&self, board: &'a Board) -> &'a RefCell<Point> {
         match *self {
             BoardPosition::Bar(player) => board.bar(player),
-            BoardPosition::Off(player) => board.off(player),
+            BoardPosition::Rail(player) => board.off(player),
             BoardPosition::Point(index) => board.point(index),
         }
     }
