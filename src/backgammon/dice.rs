@@ -64,9 +64,9 @@ impl Dice {
             .flat_map(|(&k, &v)| vec![k; v as usize].into_iter())
     }
 
-    pub fn any_available(&self) -> bool {
-        self.cast_freq.values().any(|&count| count > 0)
-    }
+    // pub fn any_available(&self) -> bool {
+    //     self.cast_freq.values().any(|&count| count > 0)
+    // }
 
     pub fn reroll(&mut self) {
         *self = Dice::roll();

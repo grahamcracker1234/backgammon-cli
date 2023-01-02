@@ -79,7 +79,6 @@ impl Turn {
         board_iter.flat_map(move |board_position| {
             let rolls_iter = game
                 .current_roll
-                .borrow()
                 .available_rolls()
                 .map(|x| x.clone())
                 .collect::<Vec<_>>()

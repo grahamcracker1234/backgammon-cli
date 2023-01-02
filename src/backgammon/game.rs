@@ -1,5 +1,4 @@
 use colored::Colorize;
-use std::cell::RefCell;
 
 use super::{
     board::{Board, BoardPosition},
@@ -12,7 +11,7 @@ use super::{
 #[derive(Clone)]
 pub struct Game {
     pub(super) current_player: Player,
-    pub(super) current_roll: RefCell<Dice>,
+    pub(super) current_roll: Dice,
     pub(super) board: Board,
 }
 
@@ -21,31 +20,29 @@ impl Game {
         Self {
             current_player: Player::random(),
             board: Board::new(),
-            current_roll: RefCell::new(Dice::first_roll()),
+            current_roll: Dice::first_roll(),
         }
     }
 
     pub fn start(&mut self) {
         loop {
             let saved_board = self.board.clone();
-            let saved_roll = self.current_roll.borrow().clone();
+            let saved_roll = self.current_roll.clone();
 
-            println!("\n{self}\n{}", self.current_roll.borrow());
+            println!("\n{self}\n");
 
-            println!(
-                "{:?}",
-                Turn::get_available_plays(&self)
-                    .map(|m| m.to_string())
-                    .collect::<Vec<_>>()
-            );
+            // println!(
+            //     "{:?}",
+            //     Turn::get_available_plays(&self)
+            //         .map(|m| m.to_string())
+            //         .collect::<Vec<_>>()
+            // );
 
             let notation = self.get_notation();
             let turn = match Turn::from(notation, self) {
                 Ok(turn) => turn,
                 Err(error) => {
                     println!("{}", error.to_string().red().bold());
-                    // self.board = saved_board;
-                    // *self.current_roll.borrow_mut() = saved_roll;
                     continue;
                 }
             };
@@ -53,7 +50,7 @@ impl Game {
             if let Err(error) = self.take_turn(turn) {
                 println!("{}", error.to_string().red().bold());
                 self.board = saved_board;
-                *self.current_roll.borrow_mut() = saved_roll;
+                self.current_roll = saved_roll;
                 continue;
             }
 
@@ -74,7 +71,7 @@ impl Game {
                     Player::None =>
                         panic!("Attempting to get plays from '{:?}'.", self.current_player),
                 },
-                self.current_roll.borrow()
+                self.current_roll
             )
             .green()
             .italic()
@@ -100,9 +97,13 @@ impl Game {
             self.make_play(&play);
         }
 
-        if self.current_roll.borrow().any_available() {
+        if Turn::get_available_plays(&self).collect::<Vec<_>>().len() > 0 {
             return Err(Error::IncompleteTurn);
         }
+
+        // if self.current_roll.any_available() {
+        //     return Err(Error::IncompleteTurn);
+        // }
 
         Ok(())
     }
@@ -154,7 +155,7 @@ impl Game {
 
         // Ensure play is possible from the dice rolls.
         let len = from.distance(&to) as u8;
-        if !self.current_roll.borrow().check(len) {
+        if !self.current_roll.check(len) {
             return Err(Error::InvalidPlayLength(len));
         }
 
@@ -166,9 +167,7 @@ impl Game {
         let mut from = play.from.point(&self.board).borrow_mut();
 
         // Ensure play is possible from the dice rolls.
-        self.current_roll
-            .borrow_mut()
-            .remove(from.distance(&to) as u8);
+        self.current_roll.remove(from.distance(&to) as u8);
 
         // Ensure that a piece is only played onto another player's piece if the other player's piece the only piece on that space.
         if to.player == !play.player && to.count == 1 {
@@ -187,7 +186,7 @@ impl Game {
     }
 
     fn change_turn(&mut self) {
-        self.current_roll.borrow_mut().reroll();
+        self.current_roll.reroll();
         self.current_player.switch();
     }
 }
