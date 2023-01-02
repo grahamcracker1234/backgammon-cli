@@ -1,7 +1,7 @@
 use itertools::Itertools;
 
 use super::{
-    board::{Board, BoardPosition},
+    board::{Board, BoardPosition, BOARD_SIZE},
     game::Game,
     player::Player,
     Error,
@@ -70,7 +70,13 @@ impl Turn {
     pub fn get_available_moves<'a>(mut game: Game) -> impl Iterator<Item = Move> + 'a {
         // let game = game.clone();
         let saved_game = game.clone();
-        let board_iter = game.board.iter().map(|x| x.clone());
+        let board_iter = (0..BOARD_SIZE)
+            .map(|index| BoardPosition::Point(index))
+            .chain([
+                BoardPosition::Bar(Player::Black),
+                BoardPosition::Bar(Player::White),
+            ])
+            .map(|x| x.clone());
 
         board_iter.flat_map(move |board_position| {
             let rolls_iter = game
@@ -91,23 +97,21 @@ impl Turn {
                     }
 
                     let r#move = match point.player {
-                        Player::Black => {
-                            let Some(index) = point.effective_pos.checked_sub(roll as usize + 1) else {
-                                return Err(Error::InvalidNotationPosition(point.effective_pos));
-                            };
-
-                            let to = BoardPosition::Point(index);
-                            Move::new(point.player, from, to)
+                        Player::Black => match point.effective_pos.checked_sub(roll as usize + 1) {
+                            Some(index) if index < BOARD_SIZE => {
+                                let to = BoardPosition::Point(index);
+                                Move::new(point.player, from, to)
+                            }
+                            _ => return Err(Error::InvalidNotationPosition(point.effective_pos)),
                         },
-                        Player::White => {
-                            let Some(index) = point.effective_pos.checked_add(roll as usize - 1) else {
-                                return Err(Error::InvalidNotationPosition(point.effective_pos));
-                            };
-
-                            let to = BoardPosition::Point(index);
-                            Move::new(point.player, from, to)
+                        Player::White => match point.effective_pos.checked_add(roll as usize - 1) {
+                            Some(index) if index < BOARD_SIZE => {
+                                let to = BoardPosition::Point(index);
+                                Move::new(point.player, from, to)
+                            }
+                            _ => return Err(Error::InvalidNotationPosition(point.effective_pos)),
                         },
-                        _ => return Err(Error::MoveMadeOutOfTurn)
+                        _ => return Err(Error::MoveMadeOutOfTurn),
                     };
 
                     // let Some(index) = point.effective_pos.checked_sub(roll as usize + 1) else {
@@ -155,8 +159,9 @@ impl Turn {
 
                     // game.take_turn(turn)?;
                     drop(point);
-                    if let Err(error) = game.make_move(r#move.clone()) {
-                        println!("{error}");
+                    println!("{}", r#move);
+                    if let Err(error) = game.check_move(&r#move) {
+                        // println!("{error}");
                         return Err(error);
                     }
                     game = saved_game.clone();

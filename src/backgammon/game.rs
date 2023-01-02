@@ -95,7 +95,10 @@ impl Game {
 
     pub(super) fn take_turn(&mut self, turn: Turn) -> Result<(), Error> {
         for r#move in turn.moves {
-            self.make_move(r#move)?;
+            if let Err(error) = self.check_move(&r#move) {
+                return Err(error);
+            }
+            self.make_move(&r#move);
         }
 
         if self.current_roll.borrow().any_available() {
@@ -105,7 +108,7 @@ impl Game {
         Ok(())
     }
 
-    pub(super) fn make_move(&mut self, r#move: Move) -> Result<(), Error> {
+    pub(super) fn check_move(&mut self, r#move: &Move) -> Result<(), Error> {
         // Ensure current player is making the move.
         if self.current_player != r#move.player {
             return Err(Error::MoveMadeOutOfTurn);
@@ -118,16 +121,16 @@ impl Game {
             return Err(Error::MoveMadeWithBarFilled);
         }
 
-        let mut from = match r#move.from {
-            BoardPosition::Bar(player) => self.board.bar(player).borrow_mut(),
+        let from = match r#move.from {
+            BoardPosition::Bar(player) => self.board.bar(player).borrow(),
             BoardPosition::Off(_) => return Err(Error::MoveMadeFromBearingTable),
-            BoardPosition::Point(index) => self.board.point(index).borrow_mut(),
+            BoardPosition::Point(index) => self.board.point(index).borrow(),
         };
 
-        let mut to = match r#move.to {
+        let to = match r#move.to {
             BoardPosition::Bar(_) => return Err(Error::MoveMadeToBar),
-            BoardPosition::Off(player) => self.board.off(player).borrow_mut(),
-            BoardPosition::Point(index) => self.board.point(index).borrow_mut(),
+            BoardPosition::Off(player) => self.board.off(player).borrow(),
+            BoardPosition::Point(index) => self.board.point(index).borrow(),
         };
 
         // Ensure there is a piece to move.
@@ -145,20 +148,33 @@ impl Game {
             return Err(Error::InvalidMoveDirection);
         }
 
+        // Ensure that a piece is only moved onto another player's piece if the other player's piece the only piece on that space.
+        if to.player == !r#move.player && to.count > 1 {
+            return Err(Error::MoveMadeOntoOpposingPiece);
+        }
+
+        // todo!: CHECK THIS AND MAKE IT NOT FORCIBLY REMOVE.
+
+        let len = from.distance(&to) as u8;
+        if !self.current_roll.borrow().check(len) {
+            return Err(Error::InvalidMoveLength(len));
+        }
+
+        Ok(())
+    }
+
+    pub(super) fn make_move(&mut self, r#move: &Move) {
+        let mut to = r#move.to.point(&self.board).borrow_mut();
+        let mut from = r#move.to.point(&self.board).borrow_mut();
+
         // Ensures move is possible from the dice rolls.
         self.current_roll
             .borrow_mut()
-            .remove(from.distance(&to) as u8)?;
+            .remove(from.distance(&to) as u8);
 
         // Ensure that a piece is only moved onto another player's piece if the other player's piece the only piece on that space.
-        if to.player == !r#move.player {
-            if to.count == 1 {
-                // Move the other player's piece to the bar.
-                self.board.bar(to.player).borrow_mut().count += 1;
-                to.count = 0;
-            } else {
-                return Err(Error::MoveMadeOntoOpposingPiece);
-            }
+        if to.player == !r#move.player && to.count == 1 {
+            self.board.bar(to.player).borrow_mut().count += 1;
         }
 
         // Make the move.
@@ -170,8 +186,6 @@ impl Game {
         if from.count == 0 && !matches!(r#move.from, BoardPosition::Bar(_)) {
             from.player = Player::None;
         }
-
-        Ok(())
     }
 
     fn change_turn(&mut self) {

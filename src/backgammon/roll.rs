@@ -44,12 +44,18 @@ impl Roll {
         roll
     }
 
-    pub fn remove(&mut self, die: u8) -> Result<(), Error> {
-        match self.dice_freq.get_mut(&die) {
-            Some(die) if *die > 0 => *die -= 1,
-            _ => return Err(Error::InvalidMoveLength(die)),
+    pub fn check(&self, die: u8) -> bool {
+        match self.dice_freq.get(&die) {
+            Some(&count) if count > 0 => true,
+            _ => false,
         }
-        Ok(())
+    }
+
+    pub fn remove(&mut self, die: u8) {
+        match self.dice_freq.get_mut(&die) {
+            Some(count) if *count > 0 => *count -= 1,
+            _ => panic!("{}", Error::InvalidMoveLength(die)),
+        }
     }
 
     pub fn available_rolls<'a>(&'a self) -> impl Iterator<Item = u8> + 'a {

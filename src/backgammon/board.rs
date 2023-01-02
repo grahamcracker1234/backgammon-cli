@@ -110,19 +110,6 @@ impl Board {
     pub fn point(&self, index: usize) -> &RefCell<Point> {
         &self.points[index]
     }
-
-    pub fn iter<'a>(&'a self) -> impl Iterator<Item = BoardPosition> {
-        (0..self.points.len())
-            .map(|index| BoardPosition::Point(index))
-            .chain([
-                BoardPosition::Bar(Player::Black),
-                BoardPosition::Bar(Player::White),
-            ])
-            .chain([
-                BoardPosition::Off(Player::Black),
-                BoardPosition::Off(Player::White),
-            ])
-    }
 }
 
 impl std::fmt::Display for Board {
