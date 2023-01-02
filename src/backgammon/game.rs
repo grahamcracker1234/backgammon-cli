@@ -100,13 +100,11 @@ impl Game {
             self.make_play(&play);
         }
 
-        if self.get_available_plays().collect::<Vec<_>>().len() > 0 {
+        if self.current_roll.any_available()
+            && self.get_available_plays().collect::<Vec<_>>().len() > 0
+        {
             return Err(Error::IncompleteTurn);
         }
-
-        // if self.current_roll.any_available() {
-        //     return Err(Error::IncompleteTurn);
-        // }
 
         Ok(())
     }
