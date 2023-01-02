@@ -9,7 +9,7 @@ const SIDES: u8 = 6;
 
 #[derive(Clone)]
 pub(super) struct Dice {
-    pub dice: [u8; COUNT],
+    dice: [u8; COUNT],
     cast_freq: HashMap<u8, u8>,
 }
 
