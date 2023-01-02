@@ -3,8 +3,8 @@ use std::cell::RefCell;
 
 use super::{
     board::{Board, BoardPosition},
+    dice::Dice,
     player::Player,
-    roll::Roll,
     turn::{Play, Turn},
     Error,
 };
@@ -12,7 +12,7 @@ use super::{
 #[derive(Clone)]
 pub struct Game {
     pub(super) current_player: Player,
-    pub(super) current_roll: RefCell<Roll>,
+    pub(super) current_roll: RefCell<Dice>,
     pub(super) board: Board,
 }
 
@@ -21,7 +21,7 @@ impl Game {
         Self {
             current_player: Player::random(),
             board: Board::new(),
-            current_roll: RefCell::new(Roll::first_roll()),
+            current_roll: RefCell::new(Dice::first_roll()),
         }
     }
 

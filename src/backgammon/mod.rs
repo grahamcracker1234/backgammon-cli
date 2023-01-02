@@ -1,7 +1,7 @@
 mod board;
+mod dice;
 mod game;
 mod player;
-mod roll;
 mod turn;
 
 pub use game::Game;

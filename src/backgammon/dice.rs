@@ -8,12 +8,12 @@ const COUNT: usize = 2;
 const SIDES: u8 = 6;
 
 #[derive(Clone)]
-pub(super) struct Roll {
+pub(super) struct Dice {
     pub dice: [u8; COUNT],
-    dice_freq: HashMap<u8, u8>,
+    cast_freq: HashMap<u8, u8>,
 }
 
-impl Roll {
+impl Dice {
     pub fn roll() -> Self {
         if SIDES == 0 {
             panic!("Number of sides cannot be zero")
@@ -27,15 +27,15 @@ impl Roll {
             .try_into()
             .unwrap();
 
-        let dice_freq = HashMap::new();
+        let cast_freq = HashMap::new();
 
-        let mut roll = Self { dice, dice_freq };
+        let mut roll = Self { dice, cast_freq };
 
         for die in roll.dice {
-            *roll.dice_freq.entry(die).or_insert(0) += 1;
+            *roll.cast_freq.entry(die).or_insert(0) += 1;
         }
 
-        for die in roll.dice_freq.values_mut() {
+        for die in roll.cast_freq.values_mut() {
             if *die > 1 {
                 *die = 1 << *die;
             }
@@ -44,46 +44,46 @@ impl Roll {
         roll
     }
 
-    pub fn check(&self, die: u8) -> bool {
-        match self.dice_freq.get(&die) {
+    pub fn check(&self, cast: u8) -> bool {
+        match self.cast_freq.get(&cast) {
             Some(&count) if count > 0 => true,
             _ => false,
         }
     }
 
-    pub fn remove(&mut self, die: u8) {
-        match self.dice_freq.get_mut(&die) {
+    pub fn remove(&mut self, cast: u8) {
+        match self.cast_freq.get_mut(&cast) {
             Some(count) if *count > 0 => *count -= 1,
-            _ => panic!("{}", Error::InvalidPlayLength(die)),
+            _ => panic!("{}", Error::InvalidPlayLength(cast)),
         }
     }
 
     pub fn available_rolls<'a>(&'a self) -> impl Iterator<Item = u8> + 'a {
-        self.dice_freq
+        self.cast_freq
             .iter()
             .flat_map(|(&k, &v)| vec![k; v as usize].into_iter())
     }
 
     pub fn any_available(&self) -> bool {
-        self.dice_freq.values().any(|&count| count > 0)
+        self.cast_freq.values().any(|&count| count > 0)
     }
 
     pub fn reroll(&mut self) {
-        *self = Roll::roll();
+        *self = Dice::roll();
     }
 
     pub fn first_roll() -> Self {
         loop {
-            let dice = Self::roll();
-            if dice.dice_freq.values().all(|&count| count == 1) {
-                return dice;
+            let roll = Self::roll();
+            if roll.cast_freq.values().all(|&count| count == 1) {
+                return roll;
             }
         }
     }
 }
 
 #[allow(unstable_name_collisions)]
-impl std::fmt::Display for Roll {
+impl std::fmt::Display for Dice {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(
             &self
