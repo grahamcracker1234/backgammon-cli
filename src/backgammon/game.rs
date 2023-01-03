@@ -635,4 +635,188 @@ mod test {
 
         assert_eq!(game.board, board);
     }
+
+    #[test]
+    fn invalid_play_length() {
+        let player = Player::Black;
+        let board = Board::empty();
+        board.point(10).borrow_mut().set(2, player);
+
+        let mut game = Game::from(player, Dice::from([1, 2]), board);
+
+        let turn = Turn(vec![
+            Play::new(player, Position::Point(10), Position::Point(9)),
+            Play::new(player, Position::Point(10), Position::Point(7)),
+        ]);
+
+        println!("{game}");
+
+        assert_eq!(game.take_turn(turn), Err(Error::InvalidPlayLength(3)));
+    }
+
+    #[test]
+    fn incomplete_turn() {
+        let player = Player::Black;
+        let board = Board::empty();
+        board.point(10).borrow_mut().set(2, player);
+
+        let mut game = Game::from(player, Dice::from([1, 2]), board);
+
+        let turn = Turn(vec![Play::new(
+            player,
+            Position::Point(10),
+            Position::Point(9),
+        )]);
+
+        println!("{game}");
+
+        assert_eq!(game.take_turn(turn), Err(Error::IncompleteTurn));
+    }
+
+    #[test]
+    fn play_made_out_of_turn() {
+        let player = Player::Black;
+        let board = Board::empty();
+        board.point(10).borrow_mut().set(2, player);
+
+        let mut game = Game::from(Player::White, Dice::from([1, 2]), board);
+
+        let turn = Turn(vec![
+            Play::new(player, Position::Point(10), Position::Point(9)),
+            Play::new(player, Position::Point(10), Position::Point(8)),
+        ]);
+
+        println!("{game}");
+
+        assert_eq!(game.take_turn(turn), Err(Error::PlayMadeOutOfTurn));
+    }
+
+    #[test]
+    fn play_made_with_bar_filled() {
+        let player = Player::Black;
+        let board = Board::empty();
+        board.bar(player).borrow_mut().set(1, player);
+        board.point(10).borrow_mut().set(2, player);
+
+        let mut game = Game::from(player, Dice::from([1, 2]), board);
+
+        let turn = Turn(vec![
+            Play::new(player, Position::Point(10), Position::Point(9)),
+            Play::new(player, Position::Point(10), Position::Point(8)),
+        ]);
+
+        println!("{game}");
+
+        assert_eq!(game.take_turn(turn), Err(Error::PlayMadeWithBarFilled));
+    }
+
+    #[test]
+    fn play_made_to_bar_filled() {
+        let player = Player::Black;
+        let board = Board::empty();
+        board.point(23).borrow_mut().set(2, player);
+
+        let mut game = Game::from(player, Dice::from([1, 2]), board);
+
+        let turn = Turn(vec![
+            Play::new(player, Position::Point(23), Position::Bar(player)),
+            Play::new(player, Position::Point(23), Position::Point(21)),
+        ]);
+
+        println!("{game}");
+
+        assert_eq!(game.take_turn(turn), Err(Error::PlayMadeToBar));
+    }
+
+    #[test]
+    fn play_made_from_rail_filled() {
+        let player = Player::Black;
+        let board = Board::empty();
+        board.rail(player).borrow_mut().set(1, player);
+        board.point(23).borrow_mut().set(2, player);
+
+        let mut game = Game::from(player, Dice::from([1, 2]), board);
+
+        let turn = Turn(vec![
+            Play::new(player, Position::Rail(player), Position::Point(0)),
+            Play::new(player, Position::Point(23), Position::Point(21)),
+        ]);
+
+        println!("{game}");
+
+        assert_eq!(game.take_turn(turn), Err(Error::PlayMadeFromRail));
+    }
+
+    #[test]
+    fn play_made_from_empty_point() {
+        let player = Player::Black;
+        let board = Board::empty();
+
+        let mut game = Game::from(player, Dice::from([1, 2]), board);
+
+        let turn = Turn(vec![Play::new(
+            player,
+            Position::Point(23),
+            Position::Point(21),
+        )]);
+
+        println!("{game}");
+
+        assert_eq!(game.take_turn(turn), Err(Error::PlayMadeFromEmptyPoint));
+    }
+
+    #[test]
+    fn play_made_with_opposing_piece() {
+        let player = Player::Black;
+        let board = Board::empty();
+        board.point(23).borrow_mut().set(2, Player::White);
+
+        let mut game = Game::from(player, Dice::from([1, 2]), board);
+
+        let turn = Turn(vec![
+            Play::new(player, Position::Point(23), Position::Point(22)),
+            Play::new(player, Position::Point(23), Position::Point(21)),
+        ]);
+
+        println!("{game}");
+
+        assert_eq!(game.take_turn(turn), Err(Error::PlayMadeWithOpposingPiece));
+    }
+
+    #[test]
+    fn invalid_play_direction() {
+        let player = Player::Black;
+        let board = Board::empty();
+        board.point(10).borrow_mut().set(2, player);
+
+        let mut game = Game::from(player, Dice::from([1, 2]), board);
+
+        let turn = Turn(vec![
+            Play::new(player, Position::Point(10), Position::Point(11)),
+            Play::new(player, Position::Point(10), Position::Point(12)),
+        ]);
+
+        println!("{game}");
+
+        assert_eq!(game.take_turn(turn), Err(Error::InvalidPlayDirection));
+    }
+
+    #[test]
+    fn play_made_onto_opposing_piece() {
+        let player = Player::Black;
+        let board = Board::empty();
+        board.point(10).borrow_mut().set(2, player);
+        board.point(8).borrow_mut().set(2, Player::White);
+
+        let mut game = Game::from(player, Dice::from([1, 2]), board);
+
+        let turn = Turn(vec![
+            Play::new(player, Position::Point(10), Position::Point(9)),
+            Play::new(player, Position::Point(10), Position::Point(8)),
+        ]);
+
+        println!("{game}");
+
+        assert_eq!(game.take_turn(turn), Err(Error::PlayMadeOntoOpposingPiece));
+    }
 }
