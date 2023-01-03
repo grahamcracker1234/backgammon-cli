@@ -14,6 +14,29 @@ pub(crate) struct Dice {
 }
 
 impl Dice {
+    #[allow(dead_code)]
+    pub fn from(dice: [u8; COUNT]) -> Self {
+        let cast_freq = Self::cast_freq(&dice);
+
+        Self { dice, cast_freq }
+    }
+
+    fn cast_freq(dice: &[u8; COUNT]) -> HashMap<u8, u8> {
+        let mut cast_freq = HashMap::new();
+
+        for &die in dice {
+            *cast_freq.entry(die).or_insert(0) += 1;
+        }
+
+        for die in cast_freq.values_mut() {
+            if *die > 1 {
+                *die = 1 << *die;
+            }
+        }
+
+        cast_freq
+    }
+
     pub fn roll() -> Self {
         if SIDES == 0 {
             panic!("Number of sides cannot be zero")
@@ -27,21 +50,9 @@ impl Dice {
             .try_into()
             .unwrap();
 
-        let cast_freq = HashMap::new();
+        let cast_freq = Self::cast_freq(&dice);
 
-        let mut roll = Self { dice, cast_freq };
-
-        for die in roll.dice {
-            *roll.cast_freq.entry(die).or_insert(0) += 1;
-        }
-
-        for die in roll.cast_freq.values_mut() {
-            if *die > 1 {
-                *die = 1 << *die;
-            }
-        }
-
-        roll
+        Self { dice, cast_freq }
     }
 
     pub fn check(&self, cast: u8) -> bool {

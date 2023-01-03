@@ -26,6 +26,15 @@ impl Game {
         }
     }
 
+    #[allow(dead_code)]
+    fn from(current_player: Player, current_roll: Dice, board: Board) -> Self {
+        Self {
+            current_player,
+            current_roll,
+            board,
+        }
+    }
+
     pub fn start(&mut self) {
         loop {
             let saved_board = self.board.clone();
@@ -252,5 +261,378 @@ impl std::fmt::Display for Game {
             Player::White => write!(f, "{:#}", self.board),
             _ => write!(f, "{}", self.board),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn black_1() {
+        let player = Player::Black;
+        let board = Board::empty();
+        board.point(10).borrow_mut().set(5, player);
+
+        let mut game = Game::from(player, Dice::from([3, 5]), board);
+
+        let turn = Turn(vec![
+            Play::new(player, Position::Point(10), Position::Point(7)),
+            Play::new(player, Position::Point(10), Position::Point(5)),
+        ]);
+
+        println!("{game}");
+
+        assert!(matches!(game.take_turn(turn), Ok(())));
+
+        println!("{game}");
+
+        let board = Board::empty();
+        board.point(10).borrow_mut().set(3, player);
+        board.point(7).borrow_mut().set(1, player);
+        board.point(5).borrow_mut().set(1, player);
+
+        println!("{board}");
+
+        assert_eq!(game.board, board);
+    }
+
+    #[test]
+    fn black_2() {
+        let player = Player::Black;
+        let board = Board::empty();
+        board.point(10).borrow_mut().set(5, player);
+        board.point(20).borrow_mut().set(3, player);
+        board.point(4).borrow_mut().set(3, player);
+
+        let mut game = Game::from(player, Dice::from([2, 6]), board);
+
+        let turn = Turn(vec![
+            Play::new(player, Position::Point(10), Position::Point(4)),
+            Play::new(player, Position::Point(20), Position::Point(18)),
+        ]);
+
+        println!("{game}");
+
+        assert!(matches!(game.take_turn(turn), Ok(())));
+
+        println!("{game}");
+
+        let board = Board::empty();
+        board.point(10).borrow_mut().set(4, player);
+        board.point(20).borrow_mut().set(2, player);
+        board.point(18).borrow_mut().set(1, player);
+        board.point(4).borrow_mut().set(4, player);
+
+        println!("{board}");
+
+        assert_eq!(game.board, board);
+    }
+
+    #[test]
+    fn black_3() {
+        let player = Player::Black;
+        let board = Board::empty();
+        board.point(15).borrow_mut().set(7, player);
+
+        let mut game = Game::from(player, Dice::from([1, 3]), board);
+
+        let turn = Turn(vec![
+            Play::new(player, Position::Point(15), Position::Point(12)),
+            Play::new(player, Position::Point(12), Position::Point(11)),
+        ]);
+
+        println!("{game}");
+
+        assert!(matches!(game.take_turn(turn), Ok(())));
+
+        println!("{game}");
+
+        let board = Board::empty();
+        board.point(15).borrow_mut().set(6, player);
+        board.point(11).borrow_mut().set(1, player);
+
+        println!("{board}");
+
+        assert_eq!(game.board, board);
+    }
+
+    #[test]
+    fn black_from_bar_1() {
+        let player = Player::Black;
+        let board = Board::empty();
+        board.bar(player).borrow_mut().set(1, player);
+        board.point(7).borrow_mut().set(2, player);
+
+        let mut game = Game::from(player, Dice::from([4, 6]), board);
+
+        let turn = Turn(vec![
+            Play::new(player, Position::Bar(player), Position::Point(18)),
+            Play::new(player, Position::Point(7), Position::Point(3)),
+        ]);
+
+        println!("{game}");
+
+        assert!(matches!(game.take_turn(turn), Ok(())));
+
+        println!("{game}");
+
+        let board = Board::empty();
+        board.point(18).borrow_mut().set(1, player);
+        board.point(7).borrow_mut().set(1, player);
+        board.point(3).borrow_mut().set(1, player);
+
+        println!("{board}");
+
+        assert_eq!(game.board, board);
+    }
+
+    #[test]
+    fn black_from_bar_2() {
+        let player = Player::Black;
+        let board = Board::empty();
+        board.bar(player).borrow_mut().set(2, player);
+        board.point(23).borrow_mut().set(2, player);
+        board.point(4).borrow_mut().set(8, player);
+
+        let mut game = Game::from(player, Dice::from([1, 2]), board);
+
+        let turn = Turn(vec![
+            Play::new(player, Position::Bar(player), Position::Point(23)),
+            Play::new(player, Position::Bar(player), Position::Point(22)),
+        ]);
+
+        println!("{game}");
+
+        assert!(matches!(game.take_turn(turn), Ok(())));
+
+        println!("{game}");
+
+        let board = Board::empty();
+        board.point(23).borrow_mut().set(3, player);
+        board.point(22).borrow_mut().set(1, player);
+        board.point(4).borrow_mut().set(8, player);
+
+        println!("{board}");
+
+        assert_eq!(game.board, board);
+    }
+
+    #[test]
+    fn black_doubles_1() {
+        let player = Player::Black;
+        let board = Board::empty();
+        board.point(17).borrow_mut().set(2, player);
+        board.point(5).borrow_mut().set(8, player);
+
+        let mut game = Game::from(player, Dice::from([3, 3]), board);
+
+        let turn = Turn(vec![
+            Play::new(player, Position::Point(17), Position::Point(14)),
+            Play::new(player, Position::Point(17), Position::Point(14)),
+            Play::new(player, Position::Point(14), Position::Point(11)),
+            Play::new(player, Position::Point(5), Position::Point(2)),
+        ]);
+
+        println!("{game}");
+
+        assert!(matches!(game.take_turn(turn), Ok(())));
+
+        println!("{game}");
+
+        let board = Board::empty();
+        board.point(14).borrow_mut().set(1, player);
+        board.point(11).borrow_mut().set(1, player);
+        board.point(5).borrow_mut().set(7, player);
+        board.point(2).borrow_mut().set(1, player);
+
+        println!("{board}");
+
+        assert_eq!(game.board, board);
+    }
+
+    #[test]
+    fn white_1() {
+        let player = Player::White;
+        let board = Board::empty();
+        board.point(11).borrow_mut().set(5, player);
+
+        let mut game = Game::from(player, Dice::from([2, 3]), board);
+
+        let turn = Turn(vec![
+            Play::new(player, Position::Point(11), Position::Point(13)),
+            Play::new(player, Position::Point(11), Position::Point(14)),
+        ]);
+
+        println!("{game}");
+
+        assert!(matches!(game.take_turn(turn), Ok(())));
+
+        println!("{game}");
+
+        let board = Board::empty();
+        board.point(11).borrow_mut().set(3, player);
+        board.point(13).borrow_mut().set(1, player);
+        board.point(14).borrow_mut().set(1, player);
+
+        println!("{board}");
+
+        assert_eq!(game.board, board);
+    }
+
+    #[test]
+    fn white_2() {
+        let player = Player::White;
+        let board = Board::empty();
+        board.point(20).borrow_mut().set(5, player);
+        board.point(0).borrow_mut().set(3, player);
+        board.point(5).borrow_mut().set(3, player);
+
+        let mut game = Game::from(player, Dice::from([3, 5]), board);
+
+        let turn = Turn(vec![
+            Play::new(player, Position::Point(20), Position::Point(23)),
+            Play::new(player, Position::Point(0), Position::Point(5)),
+        ]);
+
+        println!("{game}");
+
+        assert!(matches!(game.take_turn(turn), Ok(())));
+
+        println!("{game}");
+
+        let board = Board::empty();
+        board.point(20).borrow_mut().set(4, player);
+        board.point(0).borrow_mut().set(2, player);
+        board.point(23).borrow_mut().set(1, player);
+        board.point(5).borrow_mut().set(4, player);
+
+        println!("{board}");
+
+        assert_eq!(game.board, board);
+    }
+
+    #[test]
+    fn white_3() {
+        let player = Player::White;
+        let board = Board::empty();
+        board.point(14).borrow_mut().set(4, player);
+
+        let mut game = Game::from(player, Dice::from([1, 3]), board);
+
+        let turn = Turn(vec![
+            Play::new(player, Position::Point(14), Position::Point(15)),
+            Play::new(player, Position::Point(15), Position::Point(18)),
+        ]);
+
+        println!("{game}");
+
+        assert!(matches!(game.take_turn(turn), Ok(())));
+
+        println!("{game}");
+
+        let board = Board::empty();
+        board.point(14).borrow_mut().set(3, player);
+        board.point(18).borrow_mut().set(1, player);
+
+        println!("{board}");
+
+        assert_eq!(game.board, board);
+    }
+
+    #[test]
+    fn white_from_bar_1() {
+        let player = Player::White;
+        let board = Board::empty();
+        board.bar(player).borrow_mut().set(1, player);
+        board.point(17).borrow_mut().set(2, player);
+
+        let mut game = Game::from(player, Dice::from([6, 4]), board);
+
+        let turn = Turn(vec![
+            Play::new(player, Position::Bar(player), Position::Point(5)),
+            Play::new(player, Position::Point(17), Position::Point(21)),
+        ]);
+
+        println!("{game}");
+
+        assert!(matches!(game.take_turn(turn), Ok(())));
+
+        println!("{game}");
+
+        let board = Board::empty();
+        board.point(17).borrow_mut().set(1, player);
+        board.point(21).borrow_mut().set(1, player);
+        board.point(5).borrow_mut().set(1, player);
+
+        println!("{board}");
+
+        assert_eq!(game.board, board);
+    }
+
+    #[test]
+    fn white_from_bar_2() {
+        let player = Player::White;
+        let board = Board::empty();
+        board.bar(player).borrow_mut().set(2, player);
+        board.point(23).borrow_mut().set(2, player);
+        board.point(3).borrow_mut().set(8, player);
+
+        let mut game = Game::from(player, Dice::from([4, 1]), board);
+
+        let turn = Turn(vec![
+            Play::new(player, Position::Bar(player), Position::Point(3)),
+            Play::new(player, Position::Bar(player), Position::Point(0)),
+        ]);
+
+        println!("{game}");
+
+        assert!(matches!(game.take_turn(turn), Ok(())));
+
+        println!("{game}");
+
+        let board = Board::empty();
+        board.point(23).borrow_mut().set(2, player);
+        board.point(3).borrow_mut().set(9, player);
+        board.point(0).borrow_mut().set(1, player);
+
+        println!("{board}");
+
+        assert_eq!(game.board, board);
+    }
+
+    #[test]
+    fn white_doubles_1() {
+        let player = Player::White;
+        let board = Board::empty();
+        board.point(7).borrow_mut().set(10, player);
+        board.point(15).borrow_mut().set(3, player);
+        board.point(17).borrow_mut().set(3, player);
+
+        let mut game = Game::from(player, Dice::from([4, 4]), board);
+
+        let turn = Turn(vec![
+            Play::new(player, Position::Point(7), Position::Point(11)),
+            Play::new(player, Position::Point(7), Position::Point(11)),
+            Play::new(player, Position::Point(11), Position::Point(15)),
+            Play::new(player, Position::Point(17), Position::Point(21)),
+        ]);
+
+        println!("{game}");
+
+        assert!(matches!(game.take_turn(turn), Ok(())));
+
+        println!("{game}");
+
+        let board = Board::empty();
+        board.point(7).borrow_mut().set(8, player);
+        board.point(11).borrow_mut().set(1, player);
+        board.point(15).borrow_mut().set(4, player);
+        board.point(17).borrow_mut().set(2, player);
+        board.point(21).borrow_mut().set(1, player);
+
+        println!("{board}");
+
+        assert_eq!(game.board, board);
     }
 }

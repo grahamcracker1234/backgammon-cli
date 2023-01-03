@@ -7,39 +7,32 @@ use crate::backgammon::{notation::Notation, player::Player};
 
 pub(crate) const BOARD_SIZE: usize = 24;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub(crate) struct Board {
     points: [RefCell<Point>; BOARD_SIZE],
     bar: [RefCell<Point>; 2],
-    off: [RefCell<Point>; 2],
+    rail: [RefCell<Point>; 2],
     // totals: [u8; 2],
 }
 
 impl Board {
-    pub fn new() -> Self {
+    pub fn empty() -> Self {
         let points: [_; BOARD_SIZE] = (0..BOARD_SIZE)
             .map(|i| RefCell::new(Point::new(i + 1, 0, Player::None)))
             .collect::<Vec<_>>()
             .try_into()
             .unwrap();
 
-        // Sets black pieces.
-        *points[23].borrow_mut() = Point::new(23 + 1, 2, Player::Black);
-        *points[12].borrow_mut() = Point::new(12 + 1, 5, Player::Black);
-        *points[7].borrow_mut() = Point::new(7 + 1, 3, Player::Black);
-        *points[5].borrow_mut() = Point::new(5 + 1, 5, Player::Black);
+        let bar = [
+            RefCell::new(Point::new(BOARD_SIZE + 1, 0, Player::Black)),
+            RefCell::new(Point::new(0, 0, Player::White)),
+        ];
 
-        // Sets white pieces.
-        let offset = BOARD_SIZE - 1;
-        *points[offset - 23].borrow_mut() = Point::new(offset - 23 + 1, 2, Player::White);
-        *points[offset - 12].borrow_mut() = Point::new(offset - 12 + 1, 5, Player::White);
-        *points[offset - 7].borrow_mut() = Point::new(offset - 7 + 1, 3, Player::White);
-        *points[offset - 5].borrow_mut() = Point::new(offset - 5 + 1, 5, Player::White);
+        let rail = [
+            RefCell::new(Point::new(0, 0, Player::Black)),
+            RefCell::new(Point::new(BOARD_SIZE + 1, 0, Player::White)),
+        ];
 
-        Self::from_points(points)
-    }
-
-    fn from_points(points: [RefCell<Point>; BOARD_SIZE]) -> Self {
         // let totals = [
         //     points
         //         .iter()
@@ -57,22 +50,31 @@ impl Board {
         //         .sum(),
         // ];
 
-        let bar = [
-            RefCell::new(Point::new(BOARD_SIZE + 1, 0, Player::Black)),
-            RefCell::new(Point::new(0, 0, Player::White)),
-        ];
-
-        let off = [
-            RefCell::new(Point::new(0, 0, Player::Black)),
-            RefCell::new(Point::new(BOARD_SIZE + 1, 0, Player::White)),
-        ];
-
         Self {
             points,
             bar,
-            off,
+            rail,
             // totals,
         }
+    }
+
+    pub fn new() -> Self {
+        let board = Board::empty();
+
+        // Sets black pieces.
+        board.point(23).borrow_mut().set(2, Player::Black);
+        board.point(12).borrow_mut().set(5, Player::Black);
+        board.point(7).borrow_mut().set(3, Player::Black);
+        board.point(5).borrow_mut().set(5, Player::Black);
+
+        // Sets white pieces.
+        let offset = BOARD_SIZE - 1;
+        board.point(offset - 23).borrow_mut().set(2, Player::White);
+        board.point(offset - 12).borrow_mut().set(5, Player::White);
+        board.point(offset - 7).borrow_mut().set(3, Player::White);
+        board.point(offset - 5).borrow_mut().set(5, Player::White);
+
+        board
     }
 
     pub fn bar(&self, player: Player) -> &RefCell<Point> {
@@ -80,7 +82,7 @@ impl Board {
     }
 
     pub fn rail(&self, player: Player) -> &RefCell<Point> {
-        &self.off[player as usize]
+        &self.rail[player as usize]
     }
 
     pub fn point(&self, index: usize) -> &RefCell<Point> {
@@ -151,6 +153,30 @@ impl std::fmt::Display for Board {
     }
 }
 
+impl PartialEq for Board {
+    fn eq(&self, other: &Self) -> bool {
+        let points_match = self
+            .points
+            .iter()
+            .zip(other.points.iter())
+            .all(|(a, b)| *a.borrow() == *b.borrow());
+
+        let bars_match = self
+            .bar
+            .iter()
+            .zip(other.bar.iter())
+            .all(|(a, b)| *a.borrow() == *b.borrow());
+
+        let rails_match = self
+            .rail
+            .iter()
+            .zip(other.rail.iter())
+            .all(|(a, b)| *a.borrow() == *b.borrow());
+
+        points_match && bars_match && rails_match
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Position {
     Bar(Player),
@@ -168,7 +194,7 @@ impl Position {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Point {
     pub position: usize,
     pub count: u8,
@@ -194,5 +220,10 @@ impl Point {
 
     pub fn distance(&self, to: &Point) -> usize {
         self.position.abs_diff(to.position)
+    }
+
+    pub fn set(&mut self, count: u8, player: Player) {
+        self.count = count;
+        self.player = player;
     }
 }
