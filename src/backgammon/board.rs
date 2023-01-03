@@ -93,12 +93,6 @@ impl Board {
 impl std::fmt::Display for Board {
     #[allow(unstable_name_collisions)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let perspective = if f.alternate() {
-            Player::White
-        } else {
-            Player::Black
-        };
-
         fn fmt_point(point: &RefCell<Point>) -> String {
             let str = format!("{:#02}", point.borrow().count);
             let str = match point.borrow().player {
@@ -122,6 +116,16 @@ impl std::fmt::Display for Board {
             }};
         }
 
+        fn fmt_indices(range: RangeInclusive<usize>, rev: bool) -> colored::ColoredString {
+            fmt_line!(range, |i| format!("{i:#02}"), rev).bold()
+        }
+
+        let perspective = if f.alternate() {
+            Player::White
+        } else {
+            Player::Black
+        };
+
         let fmt_points = |range: RangeInclusive<usize>, rev: bool| -> String {
             fmt_line!(
                 range,
@@ -129,10 +133,6 @@ impl std::fmt::Display for Board {
                 rev
             )
         };
-
-        fn fmt_indices(range: RangeInclusive<usize>, rev: bool) -> colored::ColoredString {
-            fmt_line!(range, |i| format!("{i:#02}"), rev).bold()
-        }
 
         let sep = "\n-- -- -- -- -- -- + -- -- -- -- -- --\n";
 

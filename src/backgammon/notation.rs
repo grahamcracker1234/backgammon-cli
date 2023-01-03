@@ -31,9 +31,7 @@ impl Notation {
         };
 
         match notation_position {
-            Some(notation_position)
-                if notation_position <= BOARD_SIZE && notation_position >= 1 =>
-            {
+            Some(notation_position) if (1..=BOARD_SIZE).contains(&notation_position) => {
                 Ok(notation_position)
             }
             _ => Err(Error::InvalidIndexPosition(index)),
@@ -56,22 +54,19 @@ impl Notation {
             .collect::<Result<Vec<_>, _>>();
 
         match play_groups {
-            Err(error) => return Err(error),
+            Err(error) => Err(error),
             Ok(play_groups) => Ok(Turn(play_groups)),
         }
     }
 
     fn get_play_group(&self, player: Player) -> Result<Vec<Play>, Error> {
-        let positions = self.get_board_positions(player);
+        let positions = self.get_board_positions(player)?;
 
-        match positions {
-            Err(error) => return Err(error),
-            Ok(positions) => Ok(positions
-                .into_iter()
-                .tuple_windows()
-                .map(|(from, to)| Play::new(player, from, to))
-                .collect()),
-        }
+        Ok(positions
+            .into_iter()
+            .tuple_windows()
+            .map(|(from, to)| Play::new(player, from, to))
+            .collect())
     }
 
     fn get_board_positions(&self, player: Player) -> Result<Vec<Position>, Error> {
@@ -115,7 +110,7 @@ impl Play {
         match self.player {
             Player::White => to.position > from.position,
             Player::Black => to.position < from.position,
-            _ => panic!("There is no move direction for `Player::None`."),
+            Player::None => panic!("There is no move direction for `Player::None`."),
         }
     }
 }

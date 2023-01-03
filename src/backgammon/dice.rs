@@ -16,15 +16,15 @@ pub(crate) struct Dice {
 impl Dice {
     #[allow(dead_code)]
     pub fn from(dice: [u8; COUNT]) -> Self {
-        let cast_freq = Self::cast_freq(&dice);
+        let cast_freq = Self::cast_freq(dice);
 
         Self { dice, cast_freq }
     }
 
-    fn cast_freq(dice: &[u8; COUNT]) -> HashMap<u8, u8> {
+    fn cast_freq(dice: [u8; COUNT]) -> HashMap<u8, u8> {
         let mut cast_freq = HashMap::new();
 
-        for &die in dice {
+        for die in dice {
             *cast_freq.entry(die).or_insert(0) += 1;
         }
 
@@ -38,10 +38,6 @@ impl Dice {
     }
 
     pub fn roll() -> Self {
-        if SIDES == 0 {
-            panic!("Number of sides cannot be zero")
-        }
-
         let mut rng = rand::thread_rng();
 
         let dice = (0..COUNT)
@@ -50,16 +46,13 @@ impl Dice {
             .try_into()
             .unwrap();
 
-        let cast_freq = Self::cast_freq(&dice);
+        let cast_freq = Self::cast_freq(dice);
 
         Self { dice, cast_freq }
     }
 
     pub fn check(&self, cast: u8) -> bool {
-        match self.cast_freq.get(&cast) {
-            Some(&count) if count > 0 => true,
-            _ => false,
-        }
+        matches!(self.cast_freq.get(&cast), Some(&count) if count > 0)
     }
 
     pub fn remove(&mut self, cast: u8) {
@@ -69,7 +62,7 @@ impl Dice {
         }
     }
 
-    pub fn available_rolls<'a>(&'a self) -> impl Iterator<Item = u8> + 'a {
+    pub fn available_rolls(&self) -> impl Iterator<Item = u8> + '_ {
         self.cast_freq
             .iter()
             .flat_map(|(&k, &v)| vec![k; v as usize].into_iter())

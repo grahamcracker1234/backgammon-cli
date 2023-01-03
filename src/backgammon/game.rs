@@ -18,6 +18,7 @@ pub struct Game {
 }
 
 impl Game {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             current_player: Player::random(),
@@ -103,15 +104,11 @@ impl Game {
     pub(super) fn take_turn(&mut self, turn: Turn) -> Result<(), Error> {
         let Turn(plays) = turn;
         for play in plays {
-            if let Err(error) = self.check_play(&play) {
-                return Err(error);
-            }
+            self.check_play(&play)?;
             self.make_play(&play);
         }
 
-        if self.current_roll.any_available()
-            && self.get_available_plays().collect::<Vec<_>>().len() > 0
-        {
+        if self.current_roll.any_available() && self.get_available_plays().count() > 0 {
             return Err(Error::IncompleteTurn);
         }
 
@@ -164,7 +161,7 @@ impl Game {
         }
 
         // Ensure play is possible from the dice rolls.
-        let len = to.distance(&from) as u8;
+        let len = to.distance(&from).try_into().expect("value was truncated");
         if !self.current_roll.check(len) {
             return Err(Error::InvalidPlayLength(len));
         }
@@ -177,7 +174,7 @@ impl Game {
         let mut from = play.from.point(&self.board).borrow_mut();
 
         // Remove possible play from the dice rolls.
-        let len = to.distance(&from) as u8;
+        let len = to.distance(&from).try_into().expect("value was truncated");
         self.current_roll.remove(len);
 
         // If there is a blot where the player is moving to, then send it to their bar.
@@ -201,22 +198,20 @@ impl Game {
         self.current_player.switch();
     }
 
-    fn get_available_plays<'a>(&'a self) -> impl Iterator<Item = Play> + 'a {
+    fn get_available_plays(&self) -> impl Iterator<Item = Play> + '_ {
         let board_iter = (0..BOARD_SIZE)
-            .map(|index| Position::Point(index))
-            .chain([Position::Bar(Player::Black), Position::Bar(Player::White)])
-            .map(|x| x.clone());
+            .map(Position::Point)
+            .chain([Position::Bar(Player::Black), Position::Bar(Player::White)]);
 
         board_iter.flat_map(move |board_position| {
             let rolls_iter = self
                 .current_roll
                 .available_rolls()
-                .map(|x| x.clone())
                 .collect::<Vec<_>>()
                 .into_iter();
 
             rolls_iter
-                .map(|roll| {
+                .flat_map(|roll| {
                     let from = board_position.clone();
 
                     let point = board_position.point(&self.board).borrow();
@@ -239,17 +234,14 @@ impl Game {
                             }
                             _ => return Err(Error::InvalidNotationPosition(point.position)),
                         },
-                        _ => return Err(Error::PlayMadeOutOfTurn),
+                        Player::None => return Err(Error::PlayMadeOutOfTurn),
                     };
                     drop(point);
-                    println!("{}", play);
-                    if let Err(error) = self.check_play(&play) {
-                        return Err(error);
-                    }
+                    println!("{play}");
+                    self.check_play(&play)?;
 
                     Ok::<_, Error>(play)
                 })
-                .flatten()
                 .collect::<Vec<_>>()
         })
     }
@@ -261,6 +253,12 @@ impl std::fmt::Display for Game {
             Player::White => write!(f, "{:#}", self.board),
             _ => write!(f, "{}", self.board),
         }
+    }
+}
+
+impl Default for Game {
+    fn default() -> Self {
+        Game::new()
     }
 }
 
