@@ -84,6 +84,10 @@ impl Dice {
             }
         }
     }
+
+    pub fn max(&self) -> u8 {
+        self.available_rolls().max().unwrap()
+    }
 }
 
 #[allow(unstable_name_collisions)]

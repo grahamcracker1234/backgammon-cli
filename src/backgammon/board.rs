@@ -7,6 +7,8 @@ use crate::backgammon::{notation::Notation, player::Player};
 
 pub(crate) const BOARD_SIZE: usize = 24;
 
+const HOME_BOARD_INDEX: usize = 5;
+
 #[derive(Debug, Clone)]
 pub(crate) struct Board {
     points: [RefCell<Point>; BOARD_SIZE],
@@ -87,6 +89,26 @@ impl Board {
 
     pub fn point(&self, index: usize) -> &RefCell<Point> {
         &self.points[index]
+    }
+
+    pub fn any_behind(&self, index: usize, player: Player) -> bool {
+        match player {
+            Player::Black => &self.points[index + 1..],
+            Player::White => &self.points[..index],
+            Player::None => panic!("no pieces behind `None`"),
+        }
+        .iter()
+        .any(|p| p.borrow().player == player && p.borrow().count > 0)
+    }
+
+    pub fn all_in_home(&self, player: Player) -> bool {
+        let index = match player {
+            Player::Black => HOME_BOARD_INDEX,
+            Player::White => BOARD_SIZE - 1 - HOME_BOARD_INDEX,
+            Player::None => panic!("no pieces behind `None`"),
+        };
+
+        !self.any_behind(index, player)
     }
 }
 
@@ -177,6 +199,10 @@ impl PartialEq for Board {
     }
 }
 
+// Incorporate clearer normalized and denormalized types:
+// type DenormalizedPosition = usize;
+// type NormalizedPosition = usize;
+
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Position {
     Bar(Player),
@@ -225,5 +251,54 @@ impl Point {
     pub fn set(&mut self, count: u8, player: Player) {
         self.count = count;
         self.player = player;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn all_in_home_1() {
+        let player = Player::Black;
+        let board = Board::empty();
+        board.point(5).borrow_mut().set(1, player);
+
+        println!("{board}");
+
+        assert!(board.all_in_home(player));
+    }
+
+    #[test]
+    fn all_in_home_2() {
+        let player = Player::White;
+        let board = Board::empty();
+        board.point(18).borrow_mut().set(1, player);
+
+        println!("{board}");
+
+        assert!(board.all_in_home(player));
+    }
+
+    #[test]
+    fn all_in_home_3() {
+        let player = Player::Black;
+        let board = Board::empty();
+        board.point(10).borrow_mut().set(1, player);
+
+        println!("{board}");
+
+        assert!(!board.all_in_home(player));
+    }
+
+    #[test]
+    fn all_in_home_4() {
+        let player = Player::White;
+        let board = Board::empty();
+        board.point(13).borrow_mut().set(1, player);
+
+        println!("{board}");
+
+        assert!(!board.all_in_home(player));
     }
 }

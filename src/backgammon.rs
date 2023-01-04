@@ -21,6 +21,7 @@ pub(crate) enum Error {
     PlayMadeWithOpposingPiece,
     InvalidPlayDirection,
     PlayMadeOntoOpposingPiece,
+    InvalidBearOff,
 }
 
 impl std::fmt::Display for Error {
@@ -46,6 +47,9 @@ impl std::fmt::Display for Error {
             Error::InvalidPlayDirection => write!(f, "attempted to play backwards"),
             Error::PlayMadeOntoOpposingPiece => {
                 write!(f, "attempted to illegally play onto another player")
+            }
+            Error::InvalidBearOff => {
+                write!(f, "attempted to bear off without all pieces in home board")
             }
         }
     }

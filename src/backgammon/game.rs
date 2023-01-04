@@ -137,6 +137,11 @@ impl Game {
             return Err(Error::PlayMadeToBar);
         }
 
+        // Ensure a piece is only borne off if all piece are in the home table
+        if matches!(play.to, Position::Rail(_)) && !self.board.all_in_home(play.player) {
+            return Err(Error::InvalidBearOff);
+        }
+
         let from = play.from.point(&self.board).borrow();
         let to = play.to.point(&self.board).borrow();
 
@@ -163,7 +168,14 @@ impl Game {
         // Ensure play is possible from the dice rolls.
         let len = to.distance(&from).try_into().expect("value was truncated");
         if !self.current_roll.check(len) {
-            return Err(Error::InvalidPlayLength(len));
+            // Ensure a piece can be borne off with a greater roll than necessary only if there are no pieces behind it.
+            let Position::Point(index) = play.from else {
+                panic!("osdjfo");
+            };
+
+            if !matches!(play.to, Position::Rail(_)) || self.board.any_behind(index, play.player) {
+                return Err(Error::InvalidPlayLength(len));
+            }
         }
 
         Ok(())
@@ -173,9 +185,21 @@ impl Game {
         let mut to = play.to.point(&self.board).borrow_mut();
         let mut from = play.from.point(&self.board).borrow_mut();
 
-        // Remove possible play from the dice rolls.
+        // Remove possible play from the dice rolls ensuring that the proper die is removed if a piece was borne off with a greater than necessary roll.
         let len = to.distance(&from).try_into().expect("value was truncated");
-        self.current_roll.remove(len);
+        // let len = to.distance(&from).try_into().expect("value was truncated");
+        if self.current_roll.check(len) {
+            self.current_roll.remove(len);
+        } else {
+            // Ensure a piece can be borne off with a greater roll than necessary only if there are no pieces behind it.
+            let Position::Point(index) = play.from else {
+                panic!("osdjfo");
+            };
+
+            if matches!(play.to, Position::Rail(_)) && !self.board.any_behind(index, play.player) {
+                self.current_roll.remove(self.current_roll.max());
+            }
+        }
 
         // If there is a blot where the player is moving to, then send it to their bar.
         if to.player == !play.player && to.count == 1 {
@@ -199,11 +223,19 @@ impl Game {
     }
 
     fn get_available_plays(&self) -> impl Iterator<Item = Play> + '_ {
-        let board_iter = (0..BOARD_SIZE)
-            .map(Position::Point)
-            .chain([Position::Bar(Player::Black), Position::Bar(Player::White)]);
+        fn board_iter(board: &Board, player: Player) -> Box<dyn Iterator<Item = Position> + '_> {
+            if board.bar(player).borrow().count > 0 {
+                Box::new([Position::Bar(player)].into_iter())
+            } else {
+                Box::new(
+                    (0..BOARD_SIZE)
+                        .map(Position::Point)
+                        .filter(move |p| p.point(board).borrow().player == player),
+                )
+            }
+        }
 
-        board_iter.flat_map(move |board_position| {
+        board_iter(&self.board, self.current_player).flat_map(move |board_position| {
             let rolls_iter = self
                 .current_roll
                 .available_rolls()
@@ -215,29 +247,22 @@ impl Game {
                     let from = board_position.clone();
 
                     let point = board_position.point(&self.board).borrow();
-                    if self.current_player != point.player {
-                        return Err(Error::PlayMadeOutOfTurn);
-                    }
+                    // if self.current_player != point.player {
+                    //     return Err(Error::PlayMadeOutOfTurn);
+                    // }
 
-                    let play = match point.player {
-                        Player::Black => match point.position.checked_sub(roll as usize + 1) {
-                            Some(index) if index < BOARD_SIZE => {
-                                let to = Position::Point(index);
-                                Play::new(point.player, from, to)
-                            }
-                            _ => return Err(Error::InvalidNotationPosition(point.position)),
-                        },
-                        Player::White => match point.position.checked_add(roll as usize - 1) {
-                            Some(index) if index < BOARD_SIZE => {
-                                let to = Position::Point(index);
-                                Play::new(point.player, from, to)
-                            }
-                            _ => return Err(Error::InvalidNotationPosition(point.position)),
-                        },
+                    let play = match match point.player {
+                        Player::Black => point.position.checked_sub(roll as usize + 1),
+                        Player::White => point.position.checked_add(roll as usize - 1),
                         Player::None => return Err(Error::PlayMadeOutOfTurn),
+                    } {
+                        Some(index) if index < BOARD_SIZE => {
+                            let to = Position::Point(index);
+                            Play::new(point.player, from, to)
+                        }
+                        _ => return Err(Error::InvalidNotationPosition(point.position)),
                     };
-                    drop(point);
-                    println!("{play}");
+
                     self.check_play(&play)?;
 
                     Ok::<_, Error>(play)
@@ -635,7 +660,129 @@ mod test {
     }
 
     #[test]
-    fn invalid_play_length() {
+    fn bear_off_1() {
+        let player = Player::Black;
+        let board = Board::empty();
+        board.point(4).borrow_mut().set(3, player);
+
+        let mut game = Game::from(player, Dice::from([5, 4]), board);
+
+        let turn = Turn(vec![
+            Play::new(player, Position::Point(4), Position::Rail(player)),
+            Play::new(player, Position::Point(4), Position::Point(0)),
+        ]);
+
+        println!("{game}");
+
+        assert_eq!(game.take_turn(turn), Ok(()));
+
+        println!("{game}");
+
+        let board = Board::empty();
+        board.point(4).borrow_mut().set(1, player);
+        board.rail(player).borrow_mut().set(1, player);
+        board.point(0).borrow_mut().set(1, player);
+
+        println!("{board}");
+
+        assert_eq!(game.board, board);
+    }
+
+    #[test]
+    fn bear_off_2() {
+        let player = Player::White;
+        let board = Board::empty();
+        board.point(21).borrow_mut().set(3, player);
+        board.point(22).borrow_mut().set(3, player);
+
+        let mut game = Game::from(player, Dice::from([2, 3]), board);
+
+        let turn = Turn(vec![
+            Play::new(player, Position::Point(21), Position::Rail(player)),
+            Play::new(player, Position::Point(22), Position::Rail(player)),
+        ]);
+
+        println!("{game}");
+
+        assert_eq!(game.take_turn(turn), Ok(()));
+
+        println!("{game}");
+
+        let board = Board::empty();
+        board.point(21).borrow_mut().set(2, player);
+        board.point(22).borrow_mut().set(2, player);
+        board.rail(player).borrow_mut().set(2, player);
+
+        println!("{board}");
+
+        assert_eq!(game.board, board);
+    }
+
+    #[test]
+    fn bear_off_3() {
+        let player = Player::White;
+        let board = Board::empty();
+        board.point(18).borrow_mut().set(3, player);
+
+        let mut game = Game::from(player, Dice::from([6, 5]), board);
+
+        let turn = Turn(vec![
+            Play::new(player, Position::Point(18), Position::Rail(player)),
+            Play::new(player, Position::Point(18), Position::Rail(player)),
+        ]);
+
+        println!("{game}");
+
+        assert_eq!(game.take_turn(turn), Ok(()));
+
+        println!("{game}");
+
+        let board = Board::empty();
+        board.point(18).borrow_mut().set(1, player);
+        board.rail(player).borrow_mut().set(2, player);
+
+        println!("{board}");
+
+        assert_eq!(game.board, board);
+    }
+
+    #[test]
+    fn no_moves_1() {
+        let player = Player::Black;
+        let board = Board::empty();
+        board.point(10).borrow_mut().set(2, Player::White);
+        board.point(11).borrow_mut().set(2, Player::White);
+        board.point(13).borrow_mut().set(2, player);
+
+        let mut game = Game::from(player, Dice::from([2, 3]), board);
+
+        let turn = Turn(vec![]);
+
+        println!("{game}");
+
+        assert_eq!(game.take_turn(turn), Ok(()));
+    }
+
+    #[test]
+    fn no_moves_2() {
+        let player = Player::Black;
+        let board = Board::empty();
+        board.bar(player).borrow_mut().set(1, player);
+        board.point(23).borrow_mut().set(2, Player::White);
+        board.point(20).borrow_mut().set(2, Player::White);
+        board.point(13).borrow_mut().set(1, player);
+
+        let mut game = Game::from(player, Dice::from([1, 4]), board);
+
+        let turn = Turn(vec![]);
+
+        println!("{game}");
+
+        assert_eq!(game.take_turn(turn), Ok(()));
+    }
+
+    #[test]
+    fn invalid_play_length_1() {
         let player = Player::Black;
         let board = Board::empty();
         board.point(10).borrow_mut().set(2, player);
@@ -650,6 +797,26 @@ mod test {
         println!("{game}");
 
         assert_eq!(game.take_turn(turn), Err(Error::InvalidPlayLength(3)));
+    }
+
+    #[test]
+    fn invalid_play_length_2() {
+        let player = Player::Black;
+        let board = Board::empty();
+        board.point(5).borrow_mut().set(1, player);
+        board.point(4).borrow_mut().set(2, player);
+        board.point(3).borrow_mut().set(1, player);
+
+        let mut game = Game::from(player, Dice::from([3, 6]), board);
+
+        let turn = Turn(vec![
+            Play::new(player, Position::Point(4), Position::Rail(player)),
+            Play::new(player, Position::Point(3), Position::Rail(player)),
+        ]);
+
+        println!("{game}");
+
+        assert_eq!(game.take_turn(turn), Err(Error::InvalidPlayLength(5)));
     }
 
     #[test]
@@ -816,5 +983,24 @@ mod test {
         println!("{game}");
 
         assert_eq!(game.take_turn(turn), Err(Error::PlayMadeOntoOpposingPiece));
+    }
+
+    #[test]
+    fn invalid_bear_off() {
+        let player = Player::Black;
+        let board = Board::empty();
+        board.point(6).borrow_mut().set(1, player);
+        board.point(3).borrow_mut().set(2, player);
+
+        let mut game = Game::from(player, Dice::from([1, 3]), board);
+
+        let turn = Turn(vec![
+            Play::new(player, Position::Point(3), Position::Point(0)),
+            Play::new(player, Position::Point(0), Position::Rail(player)),
+        ]);
+
+        println!("{game}");
+
+        assert_eq!(game.take_turn(turn), Err(Error::InvalidBearOff));
     }
 }
