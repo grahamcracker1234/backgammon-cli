@@ -1,9 +1,15 @@
 use colored::Colorize;
 use itertools::Itertools;
 use std::cell::RefCell;
+use std::fmt::Debug;
 use std::ops::RangeInclusive;
 
-use crate::backgammon::{notation::Notation, player::Player};
+use crate::backgammon::{
+    notation::Notation,
+    player::Player,
+    position::{DenormalizedPosition, IndexPosition, NormalizedPosition},
+    Error,
+};
 
 pub(crate) const BOARD_SIZE: usize = 24;
 
@@ -20,19 +26,41 @@ pub(crate) struct Board {
 impl Board {
     pub fn empty() -> Self {
         let points: [_; BOARD_SIZE] = (0..BOARD_SIZE)
-            .map(|i| RefCell::new(Point::new(i + 1, 0, Player::None)))
+            .map(|i| {
+                RefCell::new(Point::new(
+                    IndexPosition::try_from(i).unwrap().denormalize().unwrap(),
+                    0,
+                    Player::None,
+                ))
+            })
             .collect::<Vec<_>>()
             .try_into()
             .unwrap();
 
         let bar = [
-            RefCell::new(Point::new(BOARD_SIZE + 1, 0, Player::Black)),
-            RefCell::new(Point::new(0, 0, Player::White)),
+            RefCell::new(Point::new(
+                DenormalizedPosition::try_from(BOARD_SIZE + 1).unwrap(),
+                0,
+                Player::Black,
+            )),
+            RefCell::new(Point::new(
+                DenormalizedPosition::try_from(0).unwrap(),
+                0,
+                Player::White,
+            )),
         ];
 
         let rail = [
-            RefCell::new(Point::new(0, 0, Player::Black)),
-            RefCell::new(Point::new(BOARD_SIZE + 1, 0, Player::White)),
+            RefCell::new(Point::new(
+                DenormalizedPosition::try_from(0).unwrap(),
+                0,
+                Player::Black,
+            )),
+            RefCell::new(Point::new(
+                DenormalizedPosition::try_from(BOARD_SIZE + 1).unwrap(),
+                0,
+                Player::White,
+            )),
         ];
 
         // let totals = [
@@ -151,7 +179,12 @@ impl std::fmt::Display for Board {
         let fmt_points = |range: RangeInclusive<usize>, rev: bool| -> String {
             fmt_line!(
                 range,
-                |i| fmt_point(&self.points[Notation::position_to_index(i, perspective).unwrap()]),
+                |i| fmt_point(
+                    &self.points[*NormalizedPosition::try_from(i)
+                        .unwrap()
+                        .to_index(perspective)
+                        .unwrap()]
+                ),
                 rev
             )
         };
@@ -199,36 +232,32 @@ impl PartialEq for Board {
     }
 }
 
-// Incorporate clearer normalized and denormalized types:
-// type DenormalizedPosition = usize;
-// type NormalizedPosition = usize;
-
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) enum Position {
+pub(crate) enum Space {
     Bar(Player),
     Rail(Player),
-    Point(usize),
+    Point(IndexPosition),
 }
 
-impl Position {
+impl Space {
     pub fn point<'a>(&self, board: &'a Board) -> &'a RefCell<Point> {
         match *self {
-            Position::Bar(player) => board.bar(player),
-            Position::Rail(player) => board.rail(player),
-            Position::Point(index) => board.point(index),
+            Space::Bar(player) => board.bar(player),
+            Space::Rail(player) => board.rail(player),
+            Space::Point(index) => board.point(*index),
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Point {
-    pub position: usize,
+    pub position: DenormalizedPosition,
     pub count: u8,
     pub player: Player,
 }
 
 impl Point {
-    pub fn new(position: usize, count: u8, player: Player) -> Self {
+    fn new(position: DenormalizedPosition, count: u8, player: Player) -> Self {
         Self {
             position,
             count,
