@@ -142,7 +142,12 @@ impl std::fmt::Display for Board {
     #[allow(unstable_name_collisions)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         fn fmt_point(point: &RefCell<Point>) -> String {
-            let str = format!("{:#02}", point.borrow().count);
+            let count = point.borrow().count;
+            let str = if count == 0 {
+                format!("{:2}", "░░")
+            } else {
+                format!("{:02}", point.borrow().count)
+            };
             let str = match point.borrow().player {
                 Player::Black => str.on_black().white().bold(),
                 Player::White => str.on_white().truecolor(0, 0, 0).bold(),
@@ -154,7 +159,7 @@ impl std::fmt::Display for Board {
         macro_rules! fmt_line {
             ($range:expr, $fn:expr, $rev:expr) => {{
                 let mut vec = $range.map($fn).collect::<Vec<_>>();
-                vec.insert(vec.len() / 2, '|'.to_string());
+                vec.insert(vec.len() / 2, "┃    ┃".to_string());
                 if $rev {
                     vec.reverse();
                 }
@@ -165,7 +170,7 @@ impl std::fmt::Display for Board {
         }
 
         fn fmt_indices(range: RangeInclusive<usize>, rev: bool) -> colored::ColoredString {
-            fmt_line!(range, |i| format!("{i:#02}"), rev).bold()
+            fmt_line!(range, |i| format!("{i:02}"), rev).bold()
         }
 
         let perspective = if f.alternate() {
@@ -187,22 +192,26 @@ impl std::fmt::Display for Board {
             )
         };
 
-        let sep = "\n-- -- -- -- -- -- + -- -- -- -- -- --\n";
-
         write!(
             f,
-            "{}{sep}{} Bar: {} {}{sep}{} Rail: {} {}{sep}{}",
+            "┏━┳━━━━━━━━━━━━━━━━━━━┳━━━━┳━━━━━━━━━━━━━━━━━━━┳━┓\n\
+             ┃ ┃ {                                        } ┃ ┃\n\
+             ┃ ┣━━━━━━━━━━━━━━━━━━━┫ {} ┣━━━━━━━━━━━━━━━━━━━┫ ┃\n\
+             ┃ ┃ {                                        } ┃ ┃\n\
+             ┃ ┣━━━━━━━━━━━━━━━━━━━┫    ┣━━━━━━━━━━━━━━━━━━━┫ ┃ Rail: {} {}\n\
+             ┃ ┃ {                                        } ┃ ┃\n\
+             ┃ ┣━━━━━━━━━━━━━━━━━━━┫ {} ┣━━━━━━━━━━━━━━━━━━━┫ ┃\n\
+             ┃ ┃ {                                        } ┃ ┃\n\
+             ┗━┻━━━━━━━━━━━━━━━━━━━┻━━━━┻━━━━━━━━━━━━━━━━━━━┻━┛",
             fmt_indices(13..=24, !f.alternate()),
-            fmt_points(13..=24, !f.alternate()),
             fmt_point(self.bar(perspective)),
-            fmt_point(self.bar(!perspective)),
-            fmt_points(1..=12, f.alternate()),
+            fmt_points(13..=24, !f.alternate()),
             fmt_point(self.rail(perspective)),
             fmt_point(self.rail(!perspective)),
+            fmt_points(1..=12, f.alternate()),
+            fmt_point(self.bar(!perspective)),
             fmt_indices(1..=12, f.alternate()),
-        )?;
-
-        Ok(())
+        )
     }
 }
 
@@ -290,9 +299,7 @@ mod tests {
         let player = Player::Black;
         let board = Board::empty();
         board.point(5).borrow_mut().set(1, player);
-
         println!("{board}");
-
         assert!(board.all_in_home(player));
     }
 
@@ -301,9 +308,7 @@ mod tests {
         let player = Player::White;
         let board = Board::empty();
         board.point(18).borrow_mut().set(1, player);
-
         println!("{board}");
-
         assert!(board.all_in_home(player));
     }
 
@@ -312,9 +317,7 @@ mod tests {
         let player = Player::Black;
         let board = Board::empty();
         board.point(10).borrow_mut().set(1, player);
-
         println!("{board}");
-
         assert!(!board.all_in_home(player));
     }
 
@@ -323,9 +326,7 @@ mod tests {
         let player = Player::White;
         let board = Board::empty();
         board.point(13).borrow_mut().set(1, player);
-
         println!("{board}");
-
         assert!(!board.all_in_home(player));
     }
 }

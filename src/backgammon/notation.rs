@@ -122,18 +122,6 @@ impl std::fmt::Display for Play {
 mod tests {
     use super::*;
 
-    // Turn(vec![
-    //     Play::new(
-    //         player,
-    //         Space::Point(2.try_into().unwrap()),
-    //         Space::Point(3.try_into().unwrap()),
-    //     ),
-    //     Play::new(
-    //         player,
-    //         Space::Point(12.try_into().unwrap()),
-    //         Space::Point(13.try_into().unwrap()),
-    //     ),
-    // ]);
     macro_rules! turn {
         ($player:expr, $(($from:tt, $to:tt)),*) => {
             Turn(vec![
@@ -149,212 +137,159 @@ mod tests {
         ($player:expr, $index:literal) => { Space::Point($index.try_into().unwrap()) };
     }
 
-    //     #[test]
-    //     fn position_from_index_1() {
-    //         assert_eq!(Notation::position_from_index(3, Player::Black), Ok(4));
-    //     }
-
-    //         #[test]
-    //     fn position_from_index_2() {
-    //         assert_eq!(Notation::position_from_index(13, Player::Black), Ok(14));
-    //     }
-
-    //         #[test]
-    //     fn position_from_index_3() {
-    //         assert_eq!(Notation::position_from_index(21, Player::White), Ok(3));
-    //     }
-
-    //     #[test]
-    //     fn position_from_index_4() {
-    //         assert_eq!(Notation::position_from_index(7, Player::White), Ok(17));
-    //     }
-
-    //     #[test]
-    //     fn bad_position_from_index_1() {
-    //         assert_eq!(
-    //             Notation::new::p.unwrap()osition_from_index(25, Player::Black),
-    //             Err(Error::InvalidIndexPosition(25))
-    //         );
-    //     }
-
-    //     #[test]
-    //     fn bad_position_from_index_2() {
-    //         assert_eq!(
-    //             Notation::new::p.unwrap()osition_from_index(29, Player::White),
-    //             Err(Error::InvalidIndexPosition(29))
-    //         );
-    //     }
-
-    //     #[test]
-    //     fn position_to_from_index_1() {
-    //         let player = Player::Black;
-    //         let position = 10;
-    //         assert_eq!(
-    //             Notation::new::p.unwrap()osition_from_index(
-    //                 Notation::normalized_position_to_index(position, player).unwrap(),
-    //                 player
-    //             ),
-    //             Ok(position)
-    //         )
-    //     }
-
-    //     #[test]
-    //     fn position_to_from_index_2() {
-    //         let player = Player::White;
-    //         let position = 24;
-    //         assert_eq!(
-    //             Notation::new::p.unwrap()osition_from_index(
-    //                 Notation::normalized_position_to_index(position, player).unwrap(),
-    //                 player
-    //             ),
-    //             Ok(position)
-    //         )
-    //     }
-
-    //     #[test]
-    //     fn position_to_from_index_3() {
-    //         let player = Player::White;
-    //         let position = 3;
-    //         assert_eq!(
-    //             Notation::new::p.unwrap()osition_from_index(
-    //                 Notation::normalized_position_to_index(position, player).unwrap(),
-    //                 player
-    //             ),
-    //             Ok(position)
-    //         )
-    //     }
-
-    //     #[test]
-    //     fn position_from_to_index_1() {
-    //         let player = Player::Black;
-    //         let position = 9;
-    //         assert_eq!(
-    //             Notation::new::p.unwrap()osition_to_index(
-    //                 Notation::position_from_index(position, player).unwrap(),
-    //                 player
-    //             ),
-    //             Ok(position)
-    //         )
-    //     }
-
-    //     #[test]
-    //     fn position_from_to_index_2() {
-    //         let player = Player::White;
-    //         let position = 1;
-    //         assert_eq!(
-    //             Notation::new::p.unwrap()osition_to_index(
-    //                 Notation::position_from_index(position, player).unwrap(),
-    //                 player
-    //             ),
-    //             Ok(position)
-    //         )
-    //     }
-
-    //     #[test]
-    //     fn position_from_to_index_3() {
-    //         let player = Player::White;
-    //         let position = 22;
-    //         assert_eq!(
-    //             Notation::new::p.unwrap()osition_to_index(
-    //                 Notation::position_from_index(position, player).unwrap(),
-    //                 player
-    //             ),
-    //             Ok(position)
-    //         )
-    //     }
+    use Player::{Black, White};
 
     #[test]
     fn black_notation_1() {
-        let player = Player::Black;
-        let notation = Notation::new("1/2".to_string(), player);
-        // let turn = Turn(vec![Play::new(
-        //     player,
-        //     Space::Point(0.try_into().unwrap()),
-        //     Space::Point(1.try_into().unwrap()),
-        // )]);
-
-        let turn = turn!(player, (0, 1));
+        let notation = Notation::new("1/2".to_string(), Black);
+        let turn = turn!(Black, (0, 1));
         assert_eq!(notation.turn(), Ok(turn));
     }
 
     #[test]
     fn black_notation_2() {
-        let player = Player::Black;
-        let notation = Notation::new("3/4 13/14".to_string(), player);
-        let turn = turn!(player, (2, 3), (12, 13));
-
+        let notation = Notation::new("3/4 13/14".to_string(), Black);
+        let turn = turn!(Black, (2, 3), (12, 13));
         assert_eq!(notation.turn(), Ok(turn));
     }
 
     #[test]
     fn black_notation_3() {
-        let player = Player::Black;
-        let notation = Notation::new("10/5/19".to_string(), player);
-        let turn = turn!(player, (9, 4), (4, 18));
+        let notation = Notation::new("10/5/19".to_string(), Black);
+        let turn = turn!(Black, (9, 4), (4, 18));
         assert_eq!(notation.turn(), Ok(turn));
     }
 
     #[test]
     fn black_notation_4() {
-        let player = Player::Black;
-        let notation = Notation::new("8/3/14/22 7/19".to_string(), player);
-        let turn = turn!(player, (7, 2), (2, 13), (13, 21), (6, 18));
+        let notation = Notation::new("8/3/14/22 7/19".to_string(), Black);
+        let turn = turn!(Black, (7, 2), (2, 13), (13, 21), (6, 18));
         assert_eq!(notation.turn(), Ok(turn));
     }
 
     #[test]
     fn black_notation_5() {
-        let player = Player::Black;
-        let notation = Notation::new("bar/1/20 7/19/off".to_string(), player);
-        let turn = turn!(player, (bar, 0), (0, 19), (6, 18), (18, off));
+        let notation = Notation::new("bar/1/20 7/19/off".to_string(), Black);
+        let turn = turn!(Black, (bar, 0), (0, 19), (6, 18), (18, off));
         assert_eq!(notation.turn(), Ok(turn));
     }
 
     #[test]
     fn black_notation_6() {
-        let player = Player::Black;
-        let notation = Notation::new("bar/off bar/off".to_string(), player);
-        let turn = turn!(player, (bar, off), (bar, off));
+        let notation = Notation::new("bar/off bar/off".to_string(), Black);
+        let turn = turn!(Black, (bar, off), (bar, off));
+        assert_eq!(notation.turn(), Ok(turn));
+    }
+
+    #[test]
+    fn white_notation_1() {
+        let notation = Notation::new("1/2".to_string(), White);
+        let turn = turn!(White, (23, 22));
+        assert_eq!(notation.turn(), Ok(turn));
+    }
+
+    #[test]
+    fn white_notation_2() {
+        let notation = Notation::new("3/4 13/14".to_string(), White);
+        let turn = turn!(White, (21, 20), (11, 10));
+        assert_eq!(notation.turn(), Ok(turn));
+    }
+
+    #[test]
+    fn white_notation_3() {
+        let notation = Notation::new("10/5/19".to_string(), White);
+        let turn = turn!(White, (14, 19), (19, 5));
+        assert_eq!(notation.turn(), Ok(turn));
+    }
+
+    #[test]
+    fn white_notation_4() {
+        let notation = Notation::new("8/3/14/22 7/19".to_string(), White);
+        let turn = turn!(White, (16, 21), (21, 10), (10, 2), (17, 5));
+        assert_eq!(notation.turn(), Ok(turn));
+    }
+
+    #[test]
+    fn white_notation_5() {
+        let notation = Notation::new("bar/1/20 7/19/off".to_string(), White);
+        let turn = turn!(White, (bar, 23), (23, 4), (17, 5), (5, off));
+        assert_eq!(notation.turn(), Ok(turn));
+    }
+
+    #[test]
+    fn white_notation_6() {
+        let notation = Notation::new("bar/off bar/off".to_string(), White);
+        let turn = turn!(White, (bar, off), (bar, off));
         assert_eq!(notation.turn(), Ok(turn));
     }
 
     #[test]
     fn bad_notation_1() {
-        let player = Player::Black;
         let input = "test123.4abc-30".to_string();
-        let notation = Notation::new(input.clone(), player);
+        let notation = Notation::new(input.clone(), Black);
         assert_eq!(notation.turn(), Err(Error::InvalidNotation(input)));
     }
 
     #[test]
     fn bad_notation_2() {
-        let player = Player::Black;
-        let input = "bar/bar".to_string();
-        let notation = Notation::new(input.clone(), player);
+        let input = "test123.4abc-30".to_string();
+        let notation = Notation::new(input.clone(), White);
         assert_eq!(notation.turn(), Err(Error::InvalidNotation(input)));
     }
 
     #[test]
     fn bad_notation_3() {
-        let player = Player::Black;
-        let input = "1/bar/10".to_string();
-        let notation = Notation::new(input.clone(), player);
+        let input = "bar/bar".to_string();
+        let notation = Notation::new(input.clone(), Black);
         assert_eq!(notation.turn(), Err(Error::InvalidNotation(input)));
     }
 
     #[test]
     fn bad_notation_4() {
-        let player = Player::Black;
-        let input = "off/10/3".to_string();
-        let notation = Notation::new(input.clone(), player);
+        let input = "bar/bar".to_string();
+        let notation = Notation::new(input.clone(), White);
         assert_eq!(notation.turn(), Err(Error::InvalidNotation(input)));
     }
 
     #[test]
     fn bad_notation_5() {
-        let player = Player::Black;
+        let input = "1/bar/10".to_string();
+        let notation = Notation::new(input.clone(), Black);
+        assert_eq!(notation.turn(), Err(Error::InvalidNotation(input)));
+    }
+
+    #[test]
+    fn bad_notation_6() {
+        let input = "1/bar/10".to_string();
+        let notation = Notation::new(input.clone(), White);
+        assert_eq!(notation.turn(), Err(Error::InvalidNotation(input)));
+    }
+
+    #[test]
+    fn bad_notation_7() {
+        let input = "off/10/3".to_string();
+        let notation = Notation::new(input.clone(), Black);
+        assert_eq!(notation.turn(), Err(Error::InvalidNotation(input)));
+    }
+
+    #[test]
+    fn bad_notation_8() {
+        let input = "off/10/3".to_string();
+        let notation = Notation::new(input.clone(), White);
+        assert_eq!(notation.turn(), Err(Error::InvalidNotation(input)));
+    }
+
+    #[test]
+    fn bad_notation_9() {
         let input = "19/off/21".to_string();
-        let notation = Notation::new(format!("bar/10/off {input}"), player);
+        let notation = Notation::new(format!("bar/10/off {input}"), Black);
+        assert_eq!(notation.turn(), Err(Error::InvalidNotation(input)));
+    }
+
+    #[test]
+    fn bad_notation_10() {
+        let input = "19/off/21".to_string();
+        let notation = Notation::new(format!("bar/10/off {input}"), White);
         assert_eq!(notation.turn(), Err(Error::InvalidNotation(input)));
     }
 }
