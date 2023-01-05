@@ -5,10 +5,8 @@ use std::fmt::Debug;
 use std::ops::RangeInclusive;
 
 use crate::backgammon::{
-    notation::Notation,
     player::Player,
     position::{DenormalizedPosition, IndexPosition, NormalizedPosition},
-    Error,
 };
 
 pub(crate) const BOARD_SIZE: usize = 24;
@@ -274,7 +272,7 @@ impl Point {
     // }
 
     pub fn distance(&self, to: &Point) -> usize {
-        self.position.abs_diff(to.position)
+        self.position.abs_diff(*to.position)
     }
 
     pub fn set(&mut self, count: u8, player: Player) {

@@ -52,7 +52,7 @@ impl Game {
             // );
 
             let notation = self.get_notation();
-            let turn = match notation.turn(self.current_player) {
+            let turn = match notation.turn() {
                 Ok(turn) => turn,
                 Err(error) => {
                     println!("{}", error.to_string().red().bold());
@@ -99,7 +99,7 @@ impl Game {
             .read_line(&mut input)
             .expect("Failed to read input");
 
-        Notation(input)
+        Notation::new(input, self.current_player)
     }
 
     pub(super) fn take_turn(&mut self, turn: Turn) -> Result<(), Error> {

@@ -18,9 +18,10 @@ impl NormalizedPosition {
             return Err(Error::InvalidNormalizedPosition(position, player));
         }
 
-        match (0..=25).contains(&position) {
-            true => Ok(NormalizedPosition(position, player)),
-            false => Err(Error::InvalidNormalizedPosition(position, player)),
+        if (0..=25).contains(&position) {
+            Ok(NormalizedPosition(position, player))
+        } else {
+            Err(Error::InvalidNormalizedPosition(position, player))
         }
     }
 
@@ -99,7 +100,7 @@ impl DenormalizedPosition {
     /// The value must be contained within range `0..=25` for `NormalizedPosition`
     /// to be instantiated from `usize`, thus when this method is called, the
     /// `DenormalizedPosition` is guaranteed to be in range `0..=25`.
-    pub fn normalize(&self, perspective: Player) -> NormalizedPosition {
+    pub fn normalize(self, perspective: Player) -> NormalizedPosition {
         match perspective {
             Player::Black => NormalizedPosition::new(self.0, perspective),
             Player::White => NormalizedPosition::new((BOARD_SIZE + 1) - self.0, perspective),
@@ -109,18 +110,13 @@ impl DenormalizedPosition {
     }
 
     /// Converts the given `DenormalizedPosition` to an `IndexPosition`.
-    pub fn to_index(&self) -> Result<IndexPosition, Error> {
+    pub fn to_index(self) -> Result<IndexPosition, Error> {
         // Here to avoid underflow errors from unsigned subtraction.
         if self.0 == 0 || self.0 == (BOARD_SIZE + 1) {
             return Err(Error::InvalidIndexPosition(self.0));
         }
 
         (self.0 - 1).try_into()
-    }
-
-    /// Gets the distance between two `DenormalizedPositions`
-    pub fn abs_diff(&self, denorm: DenormalizedPosition) -> usize {
-        self.0.abs_diff(denorm.0)
     }
 }
 
@@ -130,9 +126,10 @@ impl TryFrom<usize> for DenormalizedPosition {
     type Error = crate::backgammon::Error;
 
     fn try_from(value: usize) -> Result<Self, Self::Error> {
-        match (0..=25).contains(&value) {
-            true => Ok(DenormalizedPosition(value)),
-            false => Err(Error::InvalidDenormalizedPosition(value)),
+        if (0..=25).contains(&value) {
+            Ok(DenormalizedPosition(value))
+        } else {
+            Err(Error::InvalidDenormalizedPosition(value))
         }
     }
 }
@@ -166,7 +163,7 @@ impl IndexPosition {
     /// The value must be contained within range `0..=23` for `IndexPosition` to
     /// be instantiated from `usize`, thus when this method is called, the
     /// `NormalizedPosition` is guaranteed to be in range `0..=25`.
-    pub fn normalize(&self, perspective: Player) -> NormalizedPosition {
+    pub fn normalize(self, perspective: Player) -> NormalizedPosition {
         match perspective {
             Player::Black => NormalizedPosition::new(self.0 + 1, perspective),
             Player::White => NormalizedPosition::new((BOARD_SIZE + 1) - (self.0 + 1), perspective),
@@ -180,7 +177,7 @@ impl IndexPosition {
     /// The value must be contained within range `0..=23` for `IndexPosition` to
     /// be instantiated from `usize`, thus when this method is called, the
     /// `DenormalizedPosition` is guaranteed to be in range `0..=25`.
-    pub fn denormalize(&self) -> DenormalizedPosition {
+    pub fn denormalize(self) -> DenormalizedPosition {
         (self.0 + 1).try_into().unwrap()
     }
 }
@@ -191,9 +188,10 @@ impl TryFrom<usize> for IndexPosition {
     type Error = crate::backgammon::Error;
 
     fn try_from(value: usize) -> Result<Self, Self::Error> {
-        match (0..=23).contains(&value) {
-            true => Ok(IndexPosition(value)),
-            false => Err(Error::InvalidIndexPosition(value)),
+        if (0..=23).contains(&value) {
+            Ok(IndexPosition(value))
+        } else {
+            Err(Error::InvalidIndexPosition(value))
         }
     }
 }

@@ -1,58 +1,41 @@
 use itertools::Itertools;
+use regex::Regex;
 
 use crate::backgammon::{
-    board::{Board, Space, BOARD_SIZE},
+    board::{Board, Space},
     player::Player,
-    position::{IndexPosition, NormalizedPosition},
+    position::NormalizedPosition,
     Error,
 };
 
-pub(super) struct Notation(pub String);
+pub(super) struct Notation {
+    input: String,
+    player: Player,
+}
 
 impl Notation {
-    // pub fn normalized_position_to_index(
-    //     notation_position: usize,
-    //     perspective: Player,
-    // ) -> Result<usize, Error> {
-    //     let index = match perspective {
-    //         Player::White => (BOARD_SIZE).checked_sub(notation_position),
-    //         _ => notation_position.checked_sub(1),
-    //     };
+    pub fn new(input: String, player: Player) -> Self {
+        Self { input, player }
+    }
 
-    //     match index {
-    //         Some(index) if index < BOARD_SIZE => Ok(index),
-    //         _ => Err(Error::InvalidNotationPosition(notation_position)),
-    //     }
-    // }
-
-    // pub fn position_from_index(index: usize, perspective: Player) -> Result<usize, Error> {
-    //     let notation_position = match perspective {
-    //         Player::White => (BOARD_SIZE).checked_sub(index),
-    //         _ => index.checked_add(1),
-    //     };
-
-    //     match notation_position {
-    //         Some(notation_position) if (1..=BOARD_SIZE).contains(&notation_position) => {
-    //             Ok(notation_position)
-    //         }
-    //         _ => Err(Error::InvalidIndexPosition(index)),
-    //     }
-    // }
-
-    pub fn turn(&self, player: Player) -> Result<Turn, Error> {
-        let re = regex::Regex::new(r"^(?:(?:\d+)|(?:bar))(?:/\d+)*(?:/(?:(?:\d+)|(?:off)))$")
-            .expect("Regex is invalid");
+    pub fn turn(&self) -> Result<Turn, Error> {
+        let re = Regex::new(r"^(?:(?:\d+)|(?:bar))(?:/\d+)*(?:/(?:(?:\d+)|(?:off)))$")
+            .expect("regex should always be valid");
 
         // Get all play groups
-        let Notation(notation) = self;
-        let play_groups = notation
+        let play_groups = self
+            .input
             .split_whitespace()
             .map(|group| match re.find(group) {
-                Some(m) => Ok(Notation(m.as_str().to_owned()).get_play_group(player)?),
+                Some(m) => {
+                    let input = m.as_str().to_owned();
+                    let notation = Notation::new(input, self.player);
+                    notation.get_play_group()
+                }
                 None => Err(Error::InvalidNotation(group.to_owned())),
             })
             .flatten_ok()
-            .collect::<Result<Vec<_>, _>>();
+            .collect();
 
         match play_groups {
             Err(error) => Err(error),
@@ -60,32 +43,28 @@ impl Notation {
         }
     }
 
-    fn get_play_group(&self, player: Player) -> Result<Vec<Play>, Error> {
-        let positions = self.get_board_positions(player)?;
-
-        Ok(positions
+    fn get_play_group(&self) -> Result<Vec<Play>, Error> {
+        let spaces = self.get_board_spaces()?;
+        let plays = spaces
             .into_iter()
             .tuple_windows()
-            .map(|(from, to)| Play::new(player, from, to))
-            .collect())
+            .map(|(from, to)| Play::new(self.player, from, to))
+            .collect();
+        Ok(plays)
     }
 
-    fn get_board_positions(&self, player: Player) -> Result<Vec<Space>, Error> {
-        let Notation(notation) = self;
-
-        notation
-            .split('/')
+    fn get_board_spaces(&self) -> Result<Vec<Space>, Error> {
+        let spaces = self.input.split('/');
+        spaces
             .map(|m| {
                 Ok(match m {
-                    "bar" => Space::Bar(player),
-                    "off" => Space::Rail(player),
+                    "bar" => Space::Bar(self.player),
+                    "off" => Space::Rail(self.player),
                     pos => {
-                        let norm = NormalizedPosition::new(
-                            pos.parse::<usize>().expect("pos should be an integer"),
-                            player,
-                        )?;
-                        Space::Point(norm.to_index()?)
-                        // Space::Point(Notation::normalized_position_to_index(index, player)?)
+                        let pos = pos.parse::<usize>().expect("pos should be an integer");
+                        let norm = NormalizedPosition::new(pos, self.player)?;
+                        let index = norm.to_index()?;
+                        Space::Point(index)
                     }
                 })
             })
@@ -128,21 +107,12 @@ impl std::fmt::Display for Play {
             match self.from {
                 Space::Bar(_) => "bar".to_string(),
                 Space::Rail(_) => panic!("Cannot play a piece after bearing it off."),
-                Space::Point(index) => index.normalize(self.player).to_string()
-                // format!(
-                //     "{:?}",
-                //     Notation::position_from_index(index, self.player).unwrap()
-                // ),
+                Space::Point(index) => index.normalize(self.player).to_string(),
             },
             match self.to {
                 Space::Bar(_) => panic!("Cannot play onto the bar."),
                 Space::Rail(_) => "off".to_string(),
-                Space::Point(index) => index.normalize(self.player).to_string()
-
-                // format!(
-                //     "{:?}",
-                //     Notation::position_from_index(index, self.player).unwrap()
-                // ),
+                Space::Point(index) => index.normalize(self.player).to_string(),
             }
         )
     }
@@ -151,6 +121,33 @@ impl std::fmt::Display for Play {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // Turn(vec![
+    //     Play::new(
+    //         player,
+    //         Space::Point(2.try_into().unwrap()),
+    //         Space::Point(3.try_into().unwrap()),
+    //     ),
+    //     Play::new(
+    //         player,
+    //         Space::Point(12.try_into().unwrap()),
+    //         Space::Point(13.try_into().unwrap()),
+    //     ),
+    // ]);
+    macro_rules! turn {
+        ($player:expr, $(($from:tt, $to:tt)),*) => {
+            Turn(vec![
+                $(Play::new(
+                    $player,
+                    turn!($player, $from),
+                    turn!($player, $to),
+                )),*
+            ])
+        };
+        ($player:expr, bar) => { Space::Bar($player) };
+        ($player:expr, off) => { Space::Rail($player) };
+        ($player:expr, $index:literal) => { Space::Point($index.try_into().unwrap()) };
+    }
 
     //     #[test]
     //     fn position_from_index_1() {
@@ -266,113 +263,98 @@ mod tests {
     //         )
     //     }
 
-    //     #[test]
-    //     fn black_notation_1() {
-    //         let player = Player::Black;
-    //         let notation = Notation("1/2".to_string()).turn(player);
-    //         let turn = Turn(vec![Play::new(player, Space::Point(0), Space::Point(1))]);
-    //         assert_eq!(notation, Ok(turn));
-    //     }
-    // ::new
-    //     #[t.unwrap()est]
-    //     fn black_notation_2() {
-    //         let player = Player::Black;
-    //         let notation = Notation("3/4 13/14".to_string()).turn(player);
-    //         let turn = Turn(vec![
-    //             Play::new(player, Space::Point(2), Space::Point(3)),
-    //             Play::new(player, Space::Point(12), Space::Point(13)),
-    //         ]);
-    //         assert_eq!(notation, Ok(turn));
-    //     }
-    // ::new
-    //     #[t.unwrap()est]
-    //     fn black_notation_3() {
-    //         let player = Player::Black;
-    //         let notation = Notation("10/5/19".to_string()).turn(player);
-    //         let turn = Turn(vec![
-    //             Play::new(player, Space::Point(9), Space::Point(4)),
-    //             Play::new(player, Space::Point(4), Space::Point(18)),
-    //         ]);
-    //         assert_eq!(notation, Ok(turn));
-    //     }
-    // ::new
-    //     #[t.unwrap()est]
-    //     fn black_notation_4() {
-    //         let player = Player::Black;
-    //         let notation = Notation("8/3/14/22 7/19".to_string()).turn(player);
-    //         let turn = Turn(vec![
-    //             Play::new(player, Space::Point(7), Space::Point(2)),
-    //             Play::new(player, Space::Point(2), Space::Point(13)),
-    //             Play::new(player, Space::Point(13), Space::Point(21)),
-    //             Play::new(player, Space::Point(6), Space::Point(18)),
-    //         ]);
-    //         assert_eq!(notation, Ok(turn));
-    //     }
-    // ::new
-    //     #[t.unwrap()est]
-    //     fn black_notation_5() {
-    //         let player = Player::Black;
-    //         let notation = Notation("bar/1/20 7/19/off".to_string()).turn(player);
-    //         let turn = Turn(vec![
-    //             Play::new(player, Space::Bar(player), Space::Point(0)),
-    //             Play::new(player, Space::Point(0), Space::Point(19)),
-    //             Play::new(player, Space::Point(6), Space::Point(18)),
-    //             Play::new(player, Space::Point(18), Space::Rail(player)),
-    //         ]);
-    //         assert_eq!(notation, Ok(turn));
-    //     }
-    // ::new
-    //     #[t.unwrap()est]
-    //     fn black_notation_6() {
-    //         let player = Player::Black;
-    //         let notation = Notation("bar/off bar/off".to_string()).turn(player);
-    //         let turn = Turn(vec![
-    //             Play::new(player, Space::Bar(player), Space::Rail(player)),
-    //             Play::new(player, Space::Bar(player), Space::Rail(player)),
-    //         ]);
-    //         assert_eq!(notation, Ok(turn));
-    //     }
-    // ::new
-    //     #[t.unwrap()est]
-    //     fn bad_notation_1() {
-    //         let player = Player::Black;
-    //         let input = "test123.4abc-30".to_string();
-    //         let notation = Notation(input.clone()).turn(player);
-    //         assert_eq!(notation, Err(Error::InvalidNotation(input)));
-    //     }
-    // ::new
-    //     #[t.unwrap()est]
-    //     fn bad_notation_2() {
-    //         let player = Player::Black;
-    //         let input = "bar/bar".to_string();
-    //         let notation = Notation(input.clone()).turn(player);
-    //         assert_eq!(notation, Err(Error::InvalidNotation(input)));
-    //     }
-    // ::new
-    //     #[t.unwrap()est]
-    //     fn bad_notation_3() {
-    //         let player = Player::Black;
-    //         let input = "1/bar/10".to_string();
-    //         let notation = Notation(input.clone()).turn(player);
-    //         assert_eq!(notation, Err(Error::InvalidNotation(input)));
-    //     }
-    // ::new
-    //     #[t.unwrap()est]
-    //     fn bad_notation_4() {
-    //         let player = Player::Black;
-    //         let input = "off/10/3".to_string();
-    //         let notation = Notation(input.clone()).turn(player);
-    //         assert_eq!(notation, Err(Error::InvalidNotation(input)));
-    //     }
-    // ::new
-    //     #[t.unwrap()est]
-    //     fn bad_notation_5() {
-    //         let player = Player::Black;
-    //         let input = "bar/10/off 19/off/21".to_string();
-    //         let notation = Notation(input.clone()).turn(player);
-    //         assert_eq!(
-    //             notation::new,
-    // .unwrap()            Err(Error::InvalidNotation("19/off/21".to_string()))
-    //         );
-    //     }
+    #[test]
+    fn black_notation_1() {
+        let player = Player::Black;
+        let notation = Notation::new("1/2".to_string(), player);
+        // let turn = Turn(vec![Play::new(
+        //     player,
+        //     Space::Point(0.try_into().unwrap()),
+        //     Space::Point(1.try_into().unwrap()),
+        // )]);
+
+        let turn = turn!(player, (0, 1));
+        assert_eq!(notation.turn(), Ok(turn));
+    }
+
+    #[test]
+    fn black_notation_2() {
+        let player = Player::Black;
+        let notation = Notation::new("3/4 13/14".to_string(), player);
+        let turn = turn!(player, (2, 3), (12, 13));
+
+        assert_eq!(notation.turn(), Ok(turn));
+    }
+
+    #[test]
+    fn black_notation_3() {
+        let player = Player::Black;
+        let notation = Notation::new("10/5/19".to_string(), player);
+        let turn = turn!(player, (9, 4), (4, 18));
+        assert_eq!(notation.turn(), Ok(turn));
+    }
+
+    #[test]
+    fn black_notation_4() {
+        let player = Player::Black;
+        let notation = Notation::new("8/3/14/22 7/19".to_string(), player);
+        let turn = turn!(player, (7, 2), (2, 13), (13, 21), (6, 18));
+        assert_eq!(notation.turn(), Ok(turn));
+    }
+
+    #[test]
+    fn black_notation_5() {
+        let player = Player::Black;
+        let notation = Notation::new("bar/1/20 7/19/off".to_string(), player);
+        let turn = turn!(player, (bar, 0), (0, 19), (6, 18), (18, off));
+        assert_eq!(notation.turn(), Ok(turn));
+    }
+
+    #[test]
+    fn black_notation_6() {
+        let player = Player::Black;
+        let notation = Notation::new("bar/off bar/off".to_string(), player);
+        let turn = turn!(player, (bar, off), (bar, off));
+        assert_eq!(notation.turn(), Ok(turn));
+    }
+
+    #[test]
+    fn bad_notation_1() {
+        let player = Player::Black;
+        let input = "test123.4abc-30".to_string();
+        let notation = Notation::new(input.clone(), player);
+        assert_eq!(notation.turn(), Err(Error::InvalidNotation(input)));
+    }
+
+    #[test]
+    fn bad_notation_2() {
+        let player = Player::Black;
+        let input = "bar/bar".to_string();
+        let notation = Notation::new(input.clone(), player);
+        assert_eq!(notation.turn(), Err(Error::InvalidNotation(input)));
+    }
+
+    #[test]
+    fn bad_notation_3() {
+        let player = Player::Black;
+        let input = "1/bar/10".to_string();
+        let notation = Notation::new(input.clone(), player);
+        assert_eq!(notation.turn(), Err(Error::InvalidNotation(input)));
+    }
+
+    #[test]
+    fn bad_notation_4() {
+        let player = Player::Black;
+        let input = "off/10/3".to_string();
+        let notation = Notation::new(input.clone(), player);
+        assert_eq!(notation.turn(), Err(Error::InvalidNotation(input)));
+    }
+
+    #[test]
+    fn bad_notation_5() {
+        let player = Player::Black;
+        let input = "19/off/21".to_string();
+        let notation = Notation::new(format!("bar/10/off {input}"), player);
+        assert_eq!(notation.turn(), Err(Error::InvalidNotation(input)));
+    }
 }
