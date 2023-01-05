@@ -7,9 +7,11 @@ mod position;
 
 pub use game::Game;
 
+use player::Player;
+
 #[derive(Debug, PartialEq)]
 pub(crate) enum Error {
-    InvalidNormalizedPosition(usize),
+    InvalidNormalizedPosition(usize, Player),
     InvalidDenormalizedPosition(usize),
     InvalidIndexPosition(usize),
     // InvalidNotationPosition(usize),
@@ -31,8 +33,11 @@ pub(crate) enum Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::InvalidNormalizedPosition(pos) => {
-                write!(f, "cannot create `NormalizedPosition` from `{pos}`")
+            Error::InvalidNormalizedPosition(pos, player) => {
+                write!(
+                    f,
+                    "cannot create `NormalizedPosition` of `{pos}` for `{player}`"
+                )
             }
             Error::InvalidDenormalizedPosition(pos) => {
                 write!(f, "cannot create `DenormalizedPosition` from `{pos}`")

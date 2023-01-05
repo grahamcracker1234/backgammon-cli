@@ -80,10 +80,11 @@ impl Notation {
                     "bar" => Space::Bar(player),
                     "off" => Space::Rail(player),
                     pos => {
-                        let norm = NormalizedPosition::try_from(
+                        let norm = NormalizedPosition::new(
                             pos.parse::<usize>().expect("pos should be an integer"),
+                            player,
                         )?;
-                        Space::Point(norm.to_index(player)?)
+                        Space::Point(norm.to_index()?)
                         // Space::Point(Notation::normalized_position_to_index(index, player)?)
                     }
                 })
@@ -127,7 +128,7 @@ impl std::fmt::Display for Play {
             match self.from {
                 Space::Bar(_) => "bar".to_string(),
                 Space::Rail(_) => panic!("Cannot play a piece after bearing it off."),
-                Space::Point(index) => index.normalize(self.player).unwrap().to_string()
+                Space::Point(index) => index.normalize(self.player).to_string()
                 // format!(
                 //     "{:?}",
                 //     Notation::position_from_index(index, self.player).unwrap()
@@ -136,7 +137,7 @@ impl std::fmt::Display for Play {
             match self.to {
                 Space::Bar(_) => panic!("Cannot play onto the bar."),
                 Space::Rail(_) => "off".to_string(),
-                Space::Point(index) => index.normalize(self.player).unwrap().to_string()
+                Space::Point(index) => index.normalize(self.player).to_string()
 
                 // format!(
                 //     "{:?}",

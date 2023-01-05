@@ -28,7 +28,7 @@ impl Board {
         let points: [_; BOARD_SIZE] = (0..BOARD_SIZE)
             .map(|i| {
                 RefCell::new(Point::new(
-                    IndexPosition::try_from(i).unwrap().denormalize().unwrap(),
+                    IndexPosition::try_from(i).unwrap().denormalize(),
                     0,
                     Player::None,
                 ))
@@ -180,9 +180,9 @@ impl std::fmt::Display for Board {
             fmt_line!(
                 range,
                 |i| fmt_point(
-                    &self.points[*NormalizedPosition::try_from(i)
+                    &self.points[*NormalizedPosition::new(i, perspective)
                         .unwrap()
-                        .to_index(perspective)
+                        .to_index()
                         .unwrap()]
                 ),
                 rev
