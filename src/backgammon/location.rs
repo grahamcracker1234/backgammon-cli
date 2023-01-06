@@ -8,25 +8,25 @@ use std::ops::Deref;
 /// bar and the opponent's rail. This position is normalized to a given player's
 /// perspective and is not absolute.
 #[derive(Debug, PartialEq)]
-pub(crate) struct NormalizedPosition(usize, Player);
+pub(crate) struct NormalizedLocation(usize, Player);
 
 // #[allow(dead_code)]
-impl NormalizedPosition {
-    /// Create a `NormalizedPosition`.
+impl NormalizedLocation {
+    /// Create a `NormalizedLocation`.
     pub fn new(position: usize, player: Player) -> Result<Self, Error> {
         if player == Player::None {
-            return Err(Error::InvalidNormalizedPosition(position, player));
+            return Err(Error::InvalidNormalizedLocation(position, player));
         }
 
         if (0..=25).contains(&position) {
-            Ok(NormalizedPosition(position, player))
+            Ok(NormalizedLocation(position, player))
         } else {
-            Err(Error::InvalidNormalizedPosition(position, player))
+            Err(Error::InvalidNormalizedLocation(position, player))
         }
     }
 
-    // /// Denormalize the given `NormalizedPosition` from a `Player` perspective.
-    // pub fn denormalize(&self) -> Result<DenormalizedPosition, Error> {
+    // /// Denormalize the given `NormalizedLocation` from a `Player` perspective.
+    // pub fn denormalize(&self) -> Result<DenormalizedLocation, Error> {
     //     match self.1 {
     //         Player::Black => self.0.try_into(),
     //         Player::White => ((BOARD_SIZE + 1) - self.0).try_into(),
@@ -34,12 +34,12 @@ impl NormalizedPosition {
     //     }
     // }
 
-    /// Converts the given `NormalizedPosition` to an `IndexPosition` from a
+    /// Converts the given `NormalizedLocation` to an `IndexLocation` from a
     /// `Player` perspective.
-    pub fn to_index(&self) -> Result<IndexPosition, Error> {
+    pub fn to_index(&self) -> Result<IndexLocation, Error> {
         // Here to avoid underflow errors from unsigned subtraction.
         if self.0 == 0 || self.0 == (BOARD_SIZE + 1) {
-            return Err(Error::InvalidIndexPosition(self.0));
+            return Err(Error::InvalidIndexLocation(self.0));
         }
 
         match self.1 {
@@ -50,35 +50,35 @@ impl NormalizedPosition {
     }
 }
 
-/// Displays the value inside the `NormalizedPosition`.
-impl Display for NormalizedPosition {
+/// Displays the value inside the `NormalizedLocation`.
+impl Display for NormalizedLocation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-// /// Tries to create a new `NormalizedPosition` from a `usize` validating it is
+// /// Tries to create a new `NormalizedLocation` from a `usize` validating it is
 // /// contained within the range `0..=25`.
-// impl TryFrom<usize> for NormalizedPosition {
+// impl TryFrom<usize> for NormalizedLocation {
 //     type Error = crate::backgammon::Error;
 
 //     fn try_from(value: usize) -> Result<Self, Self::Error> {
 //         match (0..=25).contains(&value) {
-//             true => Ok(NormalizedPosition(value)),
-//             false => Err(Error::InvalidNormalizedPosition(value)),
+//             true => Ok(NormalizedLocation(value)),
+//             false => Err(Error::InvalidNormalizedLocation(value)),
 //         }
 //     }
 // }
 
-// /// Creates a `usize` from a `NormalizedPosition`.
-// impl From<NormalizedPosition> for usize {
-//     fn from(value: NormalizedPosition) -> Self {
+// /// Creates a `usize` from a `NormalizedLocation`.
+// impl From<NormalizedLocation> for usize {
+//     fn from(value: NormalizedLocation) -> Self {
 //         value.0
 //     }
 // }
 
-// /// Gets the `usize` from a `NormalizedPosition`.
-// impl Deref for NormalizedPosition {
+// /// Gets the `usize` from a `NormalizedLocation`.
+// impl Deref for NormalizedLocation {
 //     type Target = usize;
 
 //     fn deref(&self) -> &Self::Target {
@@ -91,58 +91,58 @@ impl Display for NormalizedPosition {
 /// ace, and 25 is the `Player::Black` bar and the `Player::White` rail. This
 /// position is not normalized and is absolute no matter the perspective.
 #[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
-pub(crate) struct DenormalizedPosition(usize);
+pub(crate) struct DenormalizedLocation(usize);
 
 // #[allow(dead_code)]
-// impl DenormalizedPosition {
-//     /// Normalize the given `DenormalizedPosition` to a `Player` perspective.
+// impl DenormalizedLocation {
+//     /// Normalize the given `DenormalizedLocation` to a `Player` perspective.
 //     ///
-//     /// The value must be contained within range `0..=25` for `NormalizedPosition`
+//     /// The value must be contained within range `0..=25` for `NormalizedLocation`
 //     /// to be instantiated from `usize`, thus when this method is called, the
-//     /// `DenormalizedPosition` is guaranteed to be in range `0..=25`.
-//     pub fn normalize(self, perspective: Player) -> NormalizedPosition {
+//     /// `DenormalizedLocation` is guaranteed to be in range `0..=25`.
+//     pub fn normalize(self, perspective: Player) -> NormalizedLocation {
 //         match perspective {
-//             Player::Black => NormalizedPosition::new(self.0, perspective),
-//             Player::White => NormalizedPosition::new((BOARD_SIZE + 1) - self.0, perspective),
+//             Player::Black => NormalizedLocation::new(self.0, perspective),
+//             Player::White => NormalizedLocation::new((BOARD_SIZE + 1) - self.0, perspective),
 //             Player::None => panic!("cannot normalize with perspective of `Player::None`"),
 //         }
 //         .unwrap()
 //     }
 
-//     /// Converts the given `DenormalizedPosition` to an `IndexPosition`.
-//     pub fn to_index(self) -> Result<IndexPosition, Error> {
+//     /// Converts the given `DenormalizedLocation` to an `IndexLocation`.
+//     pub fn to_index(self) -> Result<IndexLocation, Error> {
 //         // Here to avoid underflow errors from unsigned subtraction.
 //         if self.0 == 0 || self.0 == (BOARD_SIZE + 1) {
-//             return Err(Error::InvalidIndexPosition(self.0));
+//             return Err(Error::InvalidIndexLocation(self.0));
 //         }
 
 //         (self.0 - 1).try_into()
 //     }
 // }
 
-/// Tries to create a new `DenormalizedPosition` from a `usize` validating it is
+/// Tries to create a new `DenormalizedLocation` from a `usize` validating it is
 /// contained within the range `0..=25`.
-impl TryFrom<usize> for DenormalizedPosition {
+impl TryFrom<usize> for DenormalizedLocation {
     type Error = crate::backgammon::Error;
 
     fn try_from(value: usize) -> Result<Self, Self::Error> {
         if (0..=25).contains(&value) {
-            Ok(DenormalizedPosition(value))
+            Ok(DenormalizedLocation(value))
         } else {
-            Err(Error::InvalidDenormalizedPosition(value))
+            Err(Error::InvalidDenormalizedLocation(value))
         }
     }
 }
 
-/// Creates a `usize` from a `DenormalizedPosition`.
-impl From<DenormalizedPosition> for usize {
-    fn from(value: DenormalizedPosition) -> Self {
+/// Creates a `usize` from a `DenormalizedLocation`.
+impl From<DenormalizedLocation> for usize {
+    fn from(value: DenormalizedLocation) -> Self {
         value.0
     }
 }
 
-/// Gets the `usize` from a `DenormalizedPosition`.
-impl Deref for DenormalizedPosition {
+/// Gets the `usize` from a `DenormalizedLocation`.
+impl Deref for DenormalizedLocation {
     type Target = usize;
 
     fn deref(&self) -> &Self::Target {
@@ -154,57 +154,57 @@ impl Deref for DenormalizedPosition {
 /// the `Player::White` ace. This position is not normalized and is absolute no
 /// matter the perspective. It is used for indexing into `Board.points`.
 #[derive(Debug, PartialEq, Clone, Copy)]
-pub(crate) struct IndexPosition(usize);
+pub(crate) struct IndexLocation(usize);
 
 // #[allow(dead_code)]
-impl IndexPosition {
-    /// Normalize the given `IndexPosition` to a `Player` perspective.
+impl IndexLocation {
+    /// Normalize the given `IndexLocation` to a `Player` perspective.
     ///
-    /// The value must be contained within range `0..=23` for `IndexPosition` to
+    /// The value must be contained within range `0..=23` for `IndexLocation` to
     /// be instantiated from `usize`, thus when this method is called, the
-    /// `NormalizedPosition` is guaranteed to be in range `0..=25`.
-    pub fn normalize(self, perspective: Player) -> NormalizedPosition {
+    /// `NormalizedLocation` is guaranteed to be in range `0..=25`.
+    pub fn normalize(self, perspective: Player) -> NormalizedLocation {
         match perspective {
-            Player::Black => NormalizedPosition::new(self.0 + 1, perspective),
-            Player::White => NormalizedPosition::new((BOARD_SIZE + 1) - (self.0 + 1), perspective),
+            Player::Black => NormalizedLocation::new(self.0 + 1, perspective),
+            Player::White => NormalizedLocation::new((BOARD_SIZE + 1) - (self.0 + 1), perspective),
             Player::None => panic!("cannot normalize with perspective of `Player::None`"),
         }
         .unwrap()
     }
 
-    /// Denormalize the given `IndexPosition`.
+    /// Denormalize the given `IndexLocation`.
     ///
-    /// The value must be contained within range `0..=23` for `IndexPosition` to
+    /// The value must be contained within range `0..=23` for `IndexLocation` to
     /// be instantiated from `usize`, thus when this method is called, the
-    /// `DenormalizedPosition` is guaranteed to be in range `0..=25`.
-    pub fn denormalize(self) -> DenormalizedPosition {
+    /// `DenormalizedLocation` is guaranteed to be in range `0..=25`.
+    pub fn denormalize(self) -> DenormalizedLocation {
         (self.0 + 1).try_into().unwrap()
     }
 }
 
-/// Tries to create a new `IndexPosition` from a `usize` validating it is
+/// Tries to create a new `IndexLocation` from a `usize` validating it is
 /// contained within the range `0..=23`.
-impl TryFrom<usize> for IndexPosition {
+impl TryFrom<usize> for IndexLocation {
     type Error = crate::backgammon::Error;
 
     fn try_from(value: usize) -> Result<Self, Self::Error> {
         if (0..=23).contains(&value) {
-            Ok(IndexPosition(value))
+            Ok(IndexLocation(value))
         } else {
-            Err(Error::InvalidIndexPosition(value))
+            Err(Error::InvalidIndexLocation(value))
         }
     }
 }
 
-/// Creates a `usize` from a `IndexPosition`.
-impl From<IndexPosition> for usize {
-    fn from(value: IndexPosition) -> Self {
+/// Creates a `usize` from a `IndexLocation`.
+impl From<IndexLocation> for usize {
+    fn from(value: IndexLocation) -> Self {
         value.0
     }
 }
 
-/// Gets the `usize` from a `IndexPosition`.
-impl Deref for IndexPosition {
+/// Gets the `usize` from a `IndexLocation`.
+impl Deref for IndexLocation {
     type Target = usize;
 
     fn deref(&self) -> &Self::Target {
@@ -219,64 +219,64 @@ mod tests {
     #[test]
     fn bad_normalized_position_1() {
         assert_eq!(
-            NormalizedPosition::new(27, Player::Black),
-            Err(Error::InvalidNormalizedPosition(27, Player::Black))
+            NormalizedLocation::new(27, Player::Black),
+            Err(Error::InvalidNormalizedLocation(27, Player::Black))
         );
     }
 
     #[test]
     fn bad_normalized_position_2() {
         assert_eq!(
-            NormalizedPosition::new(209, Player::White),
-            Err(Error::InvalidNormalizedPosition(209, Player::White))
+            NormalizedLocation::new(209, Player::White),
+            Err(Error::InvalidNormalizedLocation(209, Player::White))
         );
     }
 
     #[test]
     fn bad_normalized_position_3() {
         assert_eq!(
-            NormalizedPosition::new(10, Player::None),
-            Err(Error::InvalidNormalizedPosition(10, Player::None))
+            NormalizedLocation::new(10, Player::None),
+            Err(Error::InvalidNormalizedLocation(10, Player::None))
         );
     }
 
     #[test]
     fn bad_denormalized_position_1() {
         assert_eq!(
-            DenormalizedPosition::try_from(26),
-            Err(Error::InvalidDenormalizedPosition(26))
+            DenormalizedLocation::try_from(26),
+            Err(Error::InvalidDenormalizedLocation(26))
         );
     }
 
     #[test]
     fn bad_denormalized_position_2() {
         assert_eq!(
-            DenormalizedPosition::try_from(87),
-            Err(Error::InvalidDenormalizedPosition(87))
+            DenormalizedLocation::try_from(87),
+            Err(Error::InvalidDenormalizedLocation(87))
         );
     }
 
     #[test]
     fn bad_index_position_1() {
         assert_eq!(
-            IndexPosition::try_from(24),
-            Err(Error::InvalidIndexPosition(24))
+            IndexLocation::try_from(24),
+            Err(Error::InvalidIndexLocation(24))
         );
     }
 
     #[test]
     fn bad_index_position_2() {
         assert_eq!(
-            IndexPosition::try_from(67),
-            Err(Error::InvalidIndexPosition(67))
+            IndexLocation::try_from(67),
+            Err(Error::InvalidIndexLocation(67))
         );
     }
 
     #[test]
     fn normalized_position_to_index_1() -> Result<(), Error> {
         assert_eq!(
-            NormalizedPosition::new(1, Player::Black)?.to_index(),
-            Ok(IndexPosition::try_from(0)?)
+            NormalizedLocation::new(1, Player::Black)?.to_index(),
+            Ok(IndexLocation::try_from(0)?)
         );
         Ok(())
     }
@@ -284,8 +284,8 @@ mod tests {
     #[test]
     fn normalized_position_to_index_2() -> Result<(), Error> {
         assert_eq!(
-            NormalizedPosition::new(20, Player::Black)?.to_index(),
-            Ok(IndexPosition::try_from(19)?)
+            NormalizedLocation::new(20, Player::Black)?.to_index(),
+            Ok(IndexLocation::try_from(19)?)
         );
         Ok(())
     }
@@ -293,8 +293,8 @@ mod tests {
     #[test]
     fn normalized_position_to_index_3() -> Result<(), Error> {
         assert_eq!(
-            NormalizedPosition::new(24, Player::White)?.to_index(),
-            Ok(IndexPosition::try_from(0)?)
+            NormalizedLocation::new(24, Player::White)?.to_index(),
+            Ok(IndexLocation::try_from(0)?)
         );
         Ok(())
     }
@@ -302,8 +302,8 @@ mod tests {
     #[test]
     fn normalized_position_to_index_4() -> Result<(), Error> {
         assert_eq!(
-            NormalizedPosition::new(10, Player::White)?.to_index(),
-            Ok(IndexPosition::try_from(14)?)
+            NormalizedLocation::new(10, Player::White)?.to_index(),
+            Ok(IndexLocation::try_from(14)?)
         );
         Ok(())
     }
@@ -311,8 +311,8 @@ mod tests {
     #[test]
     fn bad_normalized_position_to_index_1() -> Result<(), Error> {
         assert_eq!(
-            NormalizedPosition::new(25, Player::Black)?.to_index(),
-            Err(Error::InvalidIndexPosition(25))
+            NormalizedLocation::new(25, Player::Black)?.to_index(),
+            Err(Error::InvalidIndexLocation(25))
         );
         Ok(())
     }
@@ -320,8 +320,8 @@ mod tests {
     #[test]
     fn bad_normalized_bad_position_to_index_2() -> Result<(), Error> {
         assert_eq!(
-            NormalizedPosition::new(0, Player::Black)?.to_index(),
-            Err(Error::InvalidIndexPosition(0))
+            NormalizedLocation::new(0, Player::Black)?.to_index(),
+            Err(Error::InvalidIndexLocation(0))
         );
         Ok(())
     }
@@ -329,8 +329,8 @@ mod tests {
     #[test]
     fn bad_normalized_position_to_index_3() -> Result<(), Error> {
         assert_eq!(
-            NormalizedPosition::new(25, Player::White)?.to_index(),
-            Err(Error::InvalidIndexPosition(25))
+            NormalizedLocation::new(25, Player::White)?.to_index(),
+            Err(Error::InvalidIndexLocation(25))
         );
         Ok(())
     }
@@ -338,8 +338,8 @@ mod tests {
     #[test]
     fn bad_normalized_bad_position_to_index_4() -> Result<(), Error> {
         assert_eq!(
-            NormalizedPosition::new(0, Player::White)?.to_index(),
-            Err(Error::InvalidIndexPosition(0))
+            NormalizedLocation::new(0, Player::White)?.to_index(),
+            Err(Error::InvalidIndexLocation(0))
         );
         Ok(())
     }
@@ -347,8 +347,8 @@ mod tests {
     #[test]
     fn index_position_to_normalized_1() -> Result<(), Error> {
         assert_eq!(
-            IndexPosition::try_from(0)?.normalize(Player::Black),
-            NormalizedPosition::new(1, Player::Black)?
+            IndexLocation::try_from(0)?.normalize(Player::Black),
+            NormalizedLocation::new(1, Player::Black)?
         );
         Ok(())
     }
@@ -356,8 +356,8 @@ mod tests {
     #[test]
     fn index_position_to_normalized_2() -> Result<(), Error> {
         assert_eq!(
-            IndexPosition::try_from(19)?.normalize(Player::Black),
-            NormalizedPosition::new(20, Player::Black)?
+            IndexLocation::try_from(19)?.normalize(Player::Black),
+            NormalizedLocation::new(20, Player::Black)?
         );
         Ok(())
     }
@@ -365,8 +365,8 @@ mod tests {
     #[test]
     fn index_position_to_normalized_3() -> Result<(), Error> {
         assert_eq!(
-            IndexPosition::try_from(23)?.normalize(Player::White),
-            NormalizedPosition::new(1, Player::White)?
+            IndexLocation::try_from(23)?.normalize(Player::White),
+            NormalizedLocation::new(1, Player::White)?
         );
         Ok(())
     }
@@ -374,8 +374,8 @@ mod tests {
     #[test]
     fn index_position_to_normalized_4() -> Result<(), Error> {
         assert_eq!(
-            IndexPosition::try_from(14)?.normalize(Player::White),
-            NormalizedPosition::new(10, Player::White)?
+            IndexLocation::try_from(14)?.normalize(Player::White),
+            NormalizedLocation::new(10, Player::White)?
         );
         Ok(())
     }

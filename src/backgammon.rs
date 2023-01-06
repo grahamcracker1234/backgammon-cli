@@ -1,9 +1,9 @@
 mod board;
 mod dice;
 mod game;
+mod location;
 mod notation;
 mod player;
-mod position;
 
 pub use game::Game;
 
@@ -11,9 +11,9 @@ use player::Player;
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum Error {
-    InvalidNormalizedPosition(usize, Player),
-    InvalidDenormalizedPosition(usize),
-    InvalidIndexPosition(usize),
+    InvalidNormalizedLocation(usize, Player),
+    InvalidDenormalizedLocation(usize),
+    InvalidIndexLocation(usize),
     InvalidNotation(String),
     InvalidPlayLength(u8),
     IncompleteTurn,
@@ -31,17 +31,17 @@ pub(crate) enum Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::InvalidNormalizedPosition(pos, player) => {
+            Error::InvalidNormalizedLocation(pos, player) => {
                 write!(
                     f,
-                    "cannot create `NormalizedPosition` of `{pos}` for `{player}`"
+                    "cannot create `NormalizedLocation` of `{pos}` for `{player}`"
                 )
             }
-            Error::InvalidDenormalizedPosition(pos) => {
-                write!(f, "cannot create `DenormalizedPosition` from `{pos}`")
+            Error::InvalidDenormalizedLocation(pos) => {
+                write!(f, "cannot create `DenormalizedLocation` from `{pos}`")
             }
-            Error::InvalidIndexPosition(pos) => {
-                write!(f, "cannot create `IndexPosition` from `{pos}`")
+            Error::InvalidIndexLocation(pos) => {
+                write!(f, "cannot create `IndexLocation` from `{pos}`")
             }
             Error::InvalidNotation(notation) => write!(f, "notation '{notation}' is not valid"),
             Error::InvalidPlayLength(len) => write!(f, "play of length '{len}' is not valid"),

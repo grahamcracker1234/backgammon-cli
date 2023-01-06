@@ -3,8 +3,8 @@ use itertools::Itertools;
 use std::fmt::Debug;
 
 use crate::backgammon::{
+    location::{DenormalizedLocation, IndexLocation, NormalizedLocation},
     player::Player,
-    position::{DenormalizedPosition, IndexPosition, NormalizedPosition},
 };
 
 pub(crate) const BOARD_SIZE: usize = 24;
@@ -24,7 +24,7 @@ impl Board {
         let points: [_; BOARD_SIZE] = (0..BOARD_SIZE)
             .map(|i| {
                 Point::new(
-                    IndexPosition::try_from(i).unwrap().denormalize(),
+                    IndexLocation::try_from(i).unwrap().denormalize(),
                     0,
                     Player::None,
                 )
@@ -35,17 +35,17 @@ impl Board {
 
         let bar = [
             Point::new(
-                DenormalizedPosition::try_from(BOARD_SIZE + 1).unwrap(),
+                DenormalizedLocation::try_from(BOARD_SIZE + 1).unwrap(),
                 0,
                 Player::Black,
             ),
-            Point::new(DenormalizedPosition::try_from(0).unwrap(), 0, Player::White),
+            Point::new(DenormalizedLocation::try_from(0).unwrap(), 0, Player::White),
         ];
 
         let rail = [
-            Point::new(DenormalizedPosition::try_from(0).unwrap(), 0, Player::Black),
+            Point::new(DenormalizedLocation::try_from(0).unwrap(), 0, Player::Black),
             Point::new(
-                DenormalizedPosition::try_from(BOARD_SIZE + 1).unwrap(),
+                DenormalizedLocation::try_from(BOARD_SIZE + 1).unwrap(),
                 0,
                 Player::White,
             ),
@@ -171,7 +171,7 @@ impl std::fmt::Display for Board {
             ($range:expr $(, $rev:ident)?) => {
                 (bkgm_format!(index_format, $range $(, $rev)?), bkgm_format!(|i| {
                     point_format(&self.points[
-                        *NormalizedPosition::new(i, perspective)
+                        *NormalizedLocation::new(i, perspective)
                             .unwrap()
                             .to_index()
                             .unwrap()
@@ -267,7 +267,7 @@ impl PartialEq for Board {
 pub(crate) enum Space {
     Bar(Player),
     Rail(Player),
-    Point(IndexPosition),
+    Point(IndexLocation),
 }
 
 impl Space {
@@ -290,13 +290,13 @@ impl Space {
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Point {
-    pub position: DenormalizedPosition,
+    pub position: DenormalizedLocation,
     pub count: u8,
     pub player: Player,
 }
 
 impl Point {
-    fn new(position: DenormalizedPosition, count: u8, player: Player) -> Self {
+    fn new(position: DenormalizedLocation, count: u8, player: Player) -> Self {
         Self {
             position,
             count,

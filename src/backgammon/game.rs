@@ -3,9 +3,9 @@ use colored::Colorize;
 use crate::backgammon::{
     board::{Board, Space, BOARD_SIZE},
     dice::Dice,
+    location::IndexLocation,
     notation::{Notation, Play, Turn},
     player::Player,
-    position::IndexPosition,
     Error,
 };
 
@@ -229,7 +229,7 @@ impl Game {
             } else {
                 Box::new(
                     (0..BOARD_SIZE)
-                        .map(|i| Space::Point(IndexPosition::try_from(i).unwrap()))
+                        .map(|i| Space::Point(IndexLocation::try_from(i).unwrap()))
                         .filter(move |p| p.point(board).player == player),
                 )
             }
@@ -254,15 +254,15 @@ impl Game {
                     // let to = Space::Point(index);
                     // let play = Play::new(point.player, from, to);
 
-                    let index = IndexPosition::try_from(match point.player {
+                    let index = IndexLocation::try_from(match point.player {
                         Player::Black => point
                             .position
                             .checked_sub(roll as usize + 1)
-                            .ok_or(Error::InvalidIndexPosition(69)),
+                            .ok_or(Error::InvalidIndexLocation(69)),
                         Player::White => point
                             .position
                             .checked_add(roll as usize - 1)
-                            .ok_or(Error::InvalidIndexPosition(69)),
+                            .ok_or(Error::InvalidIndexLocation(69)),
                         Player::None => Err(Error::PlayMadeOutOfTurn),
                     }?)?;
                     let to = Space::Point(index);

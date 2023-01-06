@@ -3,8 +3,8 @@ use regex::Regex;
 
 use crate::backgammon::{
     board::{Board, Space},
+    location::NormalizedLocation,
     player::Player,
-    position::NormalizedPosition,
     Error,
 };
 
@@ -68,7 +68,7 @@ impl Notation {
                     "off" => Space::Rail(self.player),
                     pos => {
                         let pos = pos.parse::<usize>().expect("pos should be an integer");
-                        let norm = NormalizedPosition::new(pos, self.player)?;
+                        let norm = NormalizedLocation::new(pos, self.player)?;
                         let index = norm.to_index()?;
                         Space::Point(index)
                     }
