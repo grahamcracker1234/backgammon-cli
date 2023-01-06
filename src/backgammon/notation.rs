@@ -2,8 +2,8 @@ use itertools::Itertools;
 use regex::Regex;
 
 use crate::backgammon::{
-    board::{Board, Space},
-    location::NormalizedLocation,
+    board::Board,
+    location::{IndexLocation, NormalizedLocation},
     player::Player,
     Error,
 };
@@ -59,18 +59,18 @@ impl Notation {
     }
 
     /// Converts the simple notation's (notation without whitespace) input into a list of spaces.
-    fn get_board_spaces(&self) -> Result<Vec<Space>, Error> {
+    fn get_board_spaces(&self) -> Result<Vec<PositionRef>, Error> {
         let spaces = self.input.split('/');
         spaces
             .map(|m| {
                 Ok(match m {
-                    "bar" => Space::Bar(self.player),
-                    "off" => Space::Rail(self.player),
+                    "bar" => PositionRef::Bar(self.player),
+                    "off" => PositionRef::Rail(self.player),
                     pos => {
                         let pos = pos.parse::<usize>().expect("pos should be an integer");
                         let norm = NormalizedLocation::new(pos, self.player)?;
                         let index = norm.to_index()?;
-                        Space::Point(index)
+                        PositionRef::Point(index)
                     }
                 })
             })
@@ -81,25 +81,50 @@ impl Notation {
 #[derive(Debug, PartialEq)]
 pub(crate) struct Turn(pub Vec<Play>);
 
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum PositionRef {
+    Bar(Player),
+    Rail(Player),
+    Point(IndexLocation),
+}
+
+// impl Space {
+//     pub fn position<'a>(&self, board: &'a Board) -> &'a Position {
+//         match *self {
+//             Space::Bar(player) => board.bar(player),
+//             Space::Rail(player) => board.rail(player),
+//             Space::Point(index) => board.point(*index),
+//         }
+//     }
+
+//     pub fn point_mut<'a>(&self, board: &'a mut Board) -> &'a mut Position {
+//         match *self {
+//             Space::Bar(player) => board.bar_mut(player),
+//             Space::Rail(player) => board.rail_mut(player),
+//             Space::Point(index) => board.point_mut(*index),
+//         }
+//     }
+// }
+
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Play {
     pub player: Player,
-    pub from: Space,
-    pub to: Space,
+    pub from: PositionRef,
+    pub to: PositionRef,
 }
 
 impl Play {
-    pub fn new(player: Player, from: Space, to: Space) -> Self {
+    pub fn new(player: Player, from: PositionRef, to: PositionRef) -> Self {
         Self { player, from, to }
     }
 
     pub fn is_valid_direction(&self, board: &Board) -> bool {
-        let to = self.to.point(board);
-        let from = self.from.point(board);
+        let from = board.get(&self.from);
+        let to = board.get(&self.to);
 
         match self.player {
-            Player::White => to.position > from.position,
-            Player::Black => to.position < from.position,
+            Player::White => to.location > from.location,
+            Player::Black => to.location < from.location,
             Player::None => panic!("There is no move direction for `Player::None`."),
         }
     }
@@ -111,14 +136,14 @@ impl std::fmt::Display for Play {
             f,
             "{}/{}",
             match self.from {
-                Space::Bar(_) => "bar".to_string(),
-                Space::Rail(_) => panic!("Cannot play a piece after bearing it off."),
-                Space::Point(index) => index.normalize(self.player).to_string(),
+                PositionRef::Bar(_) => "bar".to_string(),
+                PositionRef::Rail(_) => panic!("Cannot play a piece after bearing it off."),
+                PositionRef::Point(index) => index.normalize(self.player).to_string(),
             },
             match self.to {
-                Space::Bar(_) => panic!("Cannot play onto the bar."),
-                Space::Rail(_) => "off".to_string(),
-                Space::Point(index) => index.normalize(self.player).to_string(),
+                PositionRef::Bar(_) => panic!("Cannot play onto the bar."),
+                PositionRef::Rail(_) => "off".to_string(),
+                PositionRef::Point(index) => index.normalize(self.player).to_string(),
             }
         )
     }
@@ -138,9 +163,9 @@ mod tests {
                 )),*
             ])
         };
-        ($player:expr, bar) => { Space::Bar($player) };
-        ($player:expr, off) => { Space::Rail($player) };
-        ($player:expr, $index:literal) => { Space::Point($index.try_into().unwrap()) };
+        ($player:expr, bar) => { PositionRef::Bar($player) };
+        ($player:expr, off) => { PositionRef::Rail($player) };
+        ($player:expr, $index:literal) => { PositionRef::Point($index.try_into().unwrap()) };
     }
 
     use Player::{Black, White};

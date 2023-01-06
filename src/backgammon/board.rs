@@ -4,6 +4,7 @@ use std::fmt::Debug;
 
 use crate::backgammon::{
     location::{DenormalizedLocation, IndexLocation, NormalizedLocation},
+    notation::PositionRef,
     player::Player,
 };
 
@@ -13,9 +14,9 @@ const HOME_BOARD_INDEX: usize = 5;
 
 #[derive(Debug, Clone)]
 pub(crate) struct Board {
-    points: [Point; BOARD_SIZE],
-    bar: [Point; 2],
-    rail: [Point; 2],
+    points: [Position; BOARD_SIZE],
+    bar: [Position; 2],
+    rail: [Position; 2],
     // totals: [u8; 2],
 }
 
@@ -23,7 +24,7 @@ impl Board {
     pub fn empty() -> Self {
         let points: [_; BOARD_SIZE] = (0..BOARD_SIZE)
             .map(|i| {
-                Point::new(
+                Position::new(
                     IndexLocation::try_from(i).unwrap().denormalize(),
                     0,
                     Player::None,
@@ -34,17 +35,17 @@ impl Board {
             .unwrap();
 
         let bar = [
-            Point::new(
+            Position::new(
                 DenormalizedLocation::try_from(BOARD_SIZE + 1).unwrap(),
                 0,
                 Player::Black,
             ),
-            Point::new(DenormalizedLocation::try_from(0).unwrap(), 0, Player::White),
+            Position::new(DenormalizedLocation::try_from(0).unwrap(), 0, Player::White),
         ];
 
         let rail = [
-            Point::new(DenormalizedLocation::try_from(0).unwrap(), 0, Player::Black),
-            Point::new(
+            Position::new(DenormalizedLocation::try_from(0).unwrap(), 0, Player::Black),
+            Position::new(
                 DenormalizedLocation::try_from(BOARD_SIZE + 1).unwrap(),
                 0,
                 Player::White,
@@ -95,28 +96,60 @@ impl Board {
         board
     }
 
-    pub fn bar(&self, player: Player) -> &Point {
+    pub fn bar(&self, player: Player) -> &Position {
         &self.bar[player as usize]
     }
 
-    pub fn rail(&self, player: Player) -> &Point {
+    pub fn rail(&self, player: Player) -> &Position {
         &self.rail[player as usize]
     }
 
-    pub fn point(&self, index: usize) -> &Point {
+    pub fn point(&self, index: usize) -> &Position {
         &self.points[index]
     }
 
-    pub fn bar_mut(&mut self, player: Player) -> &mut Point {
+    pub fn bar_mut(&mut self, player: Player) -> &mut Position {
         &mut self.bar[player as usize]
     }
 
-    pub fn rail_mut(&mut self, player: Player) -> &mut Point {
+    pub fn rail_mut(&mut self, player: Player) -> &mut Position {
         &mut self.rail[player as usize]
     }
 
-    pub fn point_mut(&mut self, index: usize) -> &mut Point {
+    pub fn point_mut(&mut self, index: usize) -> &mut Position {
         &mut self.points[index]
+    }
+    // impl Space {
+    //     pub fn position<'a>(&self, board: &'a Board) -> &'a Position {
+    //         match *self {
+    //             Space::Bar(player) => board.bar(player),
+    //             Space::Rail(player) => board.rail(player),
+    //             Space::Point(index) => board.point(*index),
+    //         }
+    //     }
+
+    //     pub fn point_mut<'a>(&self, board: &'a mut Board) -> &'a mut Position {
+    //         match *self {
+    //             Space::Bar(player) => board.bar_mut(player),
+    //             Space::Rail(player) => board.rail_mut(player),
+    //             Space::Point(index) => board.point_mut(*index),
+    //         }
+    //     }
+    // }
+    pub fn get(&self, space: &PositionRef) -> &Position {
+        match *space {
+            PositionRef::Bar(player) => self.bar(player),
+            PositionRef::Rail(player) => self.rail(player),
+            PositionRef::Point(index) => self.point(*index),
+        }
+    }
+
+    pub fn get_mut(&mut self, space: &PositionRef) -> &mut Position {
+        match *space {
+            PositionRef::Bar(player) => self.bar_mut(player),
+            PositionRef::Rail(player) => self.rail_mut(player),
+            PositionRef::Point(index) => self.point_mut(*index),
+        }
     }
 
     pub fn any_behind(&self, index: usize, player: Player) -> bool {
@@ -144,7 +177,7 @@ impl std::fmt::Display for Board {
     #[allow(unstable_name_collisions)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let index_format = |i| format!("{i:02}");
-        let point_format = |point: &Point| {
+        let point_format = |point: &Position| {
             let count = point.count;
 
             let str = if count == 0 {
@@ -264,41 +297,16 @@ impl PartialEq for Board {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) enum Space {
-    Bar(Player),
-    Rail(Player),
-    Point(IndexLocation),
-}
-
-impl Space {
-    pub fn point<'a>(&self, board: &'a Board) -> &'a Point {
-        match *self {
-            Space::Bar(player) => board.bar(player),
-            Space::Rail(player) => board.rail(player),
-            Space::Point(index) => board.point(*index),
-        }
-    }
-
-    pub fn point_mut<'a>(&self, board: &'a mut Board) -> &'a mut Point {
-        match *self {
-            Space::Bar(player) => board.bar_mut(player),
-            Space::Rail(player) => board.rail_mut(player),
-            Space::Point(index) => board.point_mut(*index),
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) struct Point {
-    pub position: DenormalizedLocation,
+pub(crate) struct Position {
+    pub location: DenormalizedLocation,
     pub count: u8,
     pub player: Player,
 }
 
-impl Point {
-    fn new(position: DenormalizedLocation, count: u8, player: Player) -> Self {
+impl Position {
+    fn new(location: DenormalizedLocation, count: u8, player: Player) -> Self {
         Self {
-            position,
+            location,
             count,
             player,
         }
@@ -312,8 +320,8 @@ impl Point {
     //     }
     // }
 
-    pub fn distance(&self, to: &Point) -> usize {
-        self.position.abs_diff(*to.position)
+    pub fn distance(&self, to: &Position) -> usize {
+        self.location.abs_diff(*to.location)
     }
 
     pub fn set(&mut self, count: u8, player: Player) {

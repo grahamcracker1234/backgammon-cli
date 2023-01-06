@@ -1,10 +1,10 @@
 use colored::Colorize;
 
 use crate::backgammon::{
-    board::{Board, Space, BOARD_SIZE},
+    board::{Board, BOARD_SIZE},
     dice::Dice,
     location::IndexLocation,
-    notation::{Notation, Play, Turn},
+    notation::{Notation, Play, PositionRef, Turn},
     player::Player,
     Error,
 };
@@ -112,27 +112,27 @@ impl Game {
         }
 
         // Ensure that if there is a piece in the bar it is played.
-        if self.board.bar(play.player).count > 0 && !matches!(play.from, Space::Bar(_)) {
+        if self.board.bar(play.player).count > 0 && !matches!(play.from, PositionRef::Bar(_)) {
             return Err(Error::PlayMadeWithBarFilled);
         }
 
         // Ensure that piece is not taken from the rail.
-        if matches!(play.from, Space::Rail(_)) {
+        if matches!(play.from, PositionRef::Rail(_)) {
             return Err(Error::PlayMadeFromRail);
         }
 
         // Ensure that piece is not going to the bar.
-        if matches!(play.to, Space::Bar(_)) {
+        if matches!(play.to, PositionRef::Bar(_)) {
             return Err(Error::PlayMadeToBar);
         }
 
         // Ensure a piece is only borne off if all piece are in the home table
-        if matches!(play.to, Space::Rail(_)) && !self.board.all_in_home(play.player) {
+        if matches!(play.to, PositionRef::Rail(_)) && !self.board.all_in_home(play.player) {
             return Err(Error::InvalidBearOff);
         }
 
-        let from = play.from.point(&self.board);
-        let to = play.to.point(&self.board);
+        let from = self.board.get(&play.from);
+        let to = self.board.get(&play.to);
 
         // Ensure there is a piece to play.
         if from.count == 0 {
@@ -158,11 +158,13 @@ impl Game {
         let len = to.distance(from).try_into().expect("value was truncated");
         if !self.current_roll.check(len) {
             // Ensure a piece can be borne off with a greater roll than necessary only if there are no pieces behind it.
-            let Space::Point(index) = play.from else {
+            let PositionRef::Point(index) = play.from else {
                 panic!("osdjfo");
             };
 
-            if !matches!(play.to, Space::Rail(_)) || self.board.any_behind(*index, play.player) {
+            if !matches!(play.to, PositionRef::Rail(_))
+                || self.board.any_behind(*index, play.player)
+            {
                 return Err(Error::InvalidPlayLength(len));
             }
         }
@@ -172,8 +174,8 @@ impl Game {
 
     pub(super) fn make_play(&mut self, play: &Play) {
         // let board_borrow = &self.board;
-        let to = play.to.point(&self.board);
-        let from = play.from.point(&self.board);
+        let from = self.board.get(&play.from);
+        let to = self.board.get(&play.to);
 
         // Remove possible play from the dice rolls ensuring that the proper die
         // is removed if a piece was borne off with a greater than necessary roll.
@@ -184,11 +186,13 @@ impl Game {
         } else {
             // Ensure a piece can be borne off with a greater roll than necessary
             //only if there are no pieces behind it.
-            let Space::Point(index) = play.from else {
+            let PositionRef::Point(index) = play.from else {
                 panic!("osdjfo");
             };
 
-            if matches!(play.to, Space::Rail(_)) && !self.board.any_behind(*index, play.player) {
+            if matches!(play.to, PositionRef::Rail(_))
+                && !self.board.any_behind(*index, play.player)
+            {
                 self.current_roll.remove(self.current_roll.max());
             }
         }
@@ -202,18 +206,19 @@ impl Game {
         }
 
         // Make the play.
-        let from = play.from.point_mut(&mut self.board);
+        let from = self.board.get_mut(&play.from);
         from.count -= 1;
 
-        let to = play.to.point_mut(&mut self.board);
+        let to = self.board.get_mut(&play.to);
         to.player = play.player;
         to.count += 1;
 
         // Reset the player of the previous position if it is empty and not from
         // the bar
-        let from = play.from.point(&self.board);
-        if from.count == 0 && !matches!(play.from, Space::Bar(_)) {
-            play.from.point_mut(&mut self.board).player = Player::None;
+        let from = self.board.get(&play.from);
+        if from.count == 0 && !matches!(play.from, PositionRef::Bar(_)) {
+            let from = self.board.get_mut(&play.from);
+            from.player = Player::None;
         }
     }
 
@@ -223,14 +228,14 @@ impl Game {
     }
 
     fn get_available_plays(&self) -> impl Iterator<Item = Play> + '_ {
-        fn board_iter(board: &Board, player: Player) -> Box<dyn Iterator<Item = Space> + '_> {
+        fn board_iter(board: &Board, player: Player) -> Box<dyn Iterator<Item = PositionRef> + '_> {
             if board.bar(player).count > 0 {
-                Box::new([Space::Bar(player)].into_iter())
+                Box::new([PositionRef::Bar(player)].into_iter())
             } else {
                 Box::new(
                     (0..BOARD_SIZE)
-                        .map(|i| Space::Point(IndexLocation::try_from(i).unwrap()))
-                        .filter(move |p| p.point(board).player == player),
+                        .map(|i| PositionRef::Point(IndexLocation::try_from(i).unwrap()))
+                        .filter(move |p| board.get(p).player == player),
                 )
             }
         }
@@ -246,7 +251,7 @@ impl Game {
                 .flat_map(|roll| {
                     let from = board_position.clone();
 
-                    let point = board_position.point(&self.board);
+                    let point = self.board.get(&board_position);
                     // if self.current_player != point.player {
                     //     return Err(Error::PlayMadeOutOfTurn);
                     // }
@@ -256,16 +261,16 @@ impl Game {
 
                     let index = IndexLocation::try_from(match point.player {
                         Player::Black => point
-                            .position
+                            .location
                             .checked_sub(roll as usize + 1)
                             .ok_or(Error::InvalidIndexLocation(69)),
                         Player::White => point
-                            .position
+                            .location
                             .checked_add(roll as usize - 1)
                             .ok_or(Error::InvalidIndexLocation(69)),
                         Player::None => Err(Error::PlayMadeOutOfTurn),
                     }?)?;
-                    let to = Space::Point(index);
+                    let to = PositionRef::Point(index);
                     let play = Play::new(point.player, from, to);
 
                     self.check_play(&play)?;
@@ -307,13 +312,13 @@ mod test {
         let turn = Turn(vec![
             Play::new(
                 player,
-                Space::Point(10.try_into().unwrap()),
-                Space::Point(7.try_into().unwrap()),
+                PositionRef::Point(10.try_into().unwrap()),
+                PositionRef::Point(7.try_into().unwrap()),
             ),
             Play::new(
                 player,
-                Space::Point(10.try_into().unwrap()),
-                Space::Point(5.try_into().unwrap()),
+                PositionRef::Point(10.try_into().unwrap()),
+                PositionRef::Point(5.try_into().unwrap()),
             ),
         ]);
 
@@ -346,13 +351,13 @@ mod test {
         let turn = Turn(vec![
             Play::new(
                 player,
-                Space::Point(10.try_into().unwrap()),
-                Space::Point(4.try_into().unwrap()),
+                PositionRef::Point(10.try_into().unwrap()),
+                PositionRef::Point(4.try_into().unwrap()),
             ),
             Play::new(
                 player,
-                Space::Point(20.try_into().unwrap()),
-                Space::Point(18.try_into().unwrap()),
+                PositionRef::Point(20.try_into().unwrap()),
+                PositionRef::Point(18.try_into().unwrap()),
             ),
         ]);
 
@@ -384,13 +389,13 @@ mod test {
         let turn = Turn(vec![
             Play::new(
                 player,
-                Space::Point(15.try_into().unwrap()),
-                Space::Point(12.try_into().unwrap()),
+                PositionRef::Point(15.try_into().unwrap()),
+                PositionRef::Point(12.try_into().unwrap()),
             ),
             Play::new(
                 player,
-                Space::Point(12.try_into().unwrap()),
-                Space::Point(11.try_into().unwrap()),
+                PositionRef::Point(12.try_into().unwrap()),
+                PositionRef::Point(11.try_into().unwrap()),
             ),
         ]);
 
@@ -421,13 +426,13 @@ mod test {
         let turn = Turn(vec![
             Play::new(
                 player,
-                Space::Bar(player),
-                Space::Point(18.try_into().unwrap()),
+                PositionRef::Bar(player),
+                PositionRef::Point(18.try_into().unwrap()),
             ),
             Play::new(
                 player,
-                Space::Point(7.try_into().unwrap()),
-                Space::Point(3.try_into().unwrap()),
+                PositionRef::Point(7.try_into().unwrap()),
+                PositionRef::Point(3.try_into().unwrap()),
             ),
         ]);
 
@@ -460,13 +465,13 @@ mod test {
         let turn = Turn(vec![
             Play::new(
                 player,
-                Space::Bar(player),
-                Space::Point(23.try_into().unwrap()),
+                PositionRef::Bar(player),
+                PositionRef::Point(23.try_into().unwrap()),
             ),
             Play::new(
                 player,
-                Space::Bar(player),
-                Space::Point(22.try_into().unwrap()),
+                PositionRef::Bar(player),
+                PositionRef::Point(22.try_into().unwrap()),
             ),
         ]);
 
@@ -498,23 +503,23 @@ mod test {
         let turn = Turn(vec![
             Play::new(
                 player,
-                Space::Point(17.try_into().unwrap()),
-                Space::Point(14.try_into().unwrap()),
+                PositionRef::Point(17.try_into().unwrap()),
+                PositionRef::Point(14.try_into().unwrap()),
             ),
             Play::new(
                 player,
-                Space::Point(17.try_into().unwrap()),
-                Space::Point(14.try_into().unwrap()),
+                PositionRef::Point(17.try_into().unwrap()),
+                PositionRef::Point(14.try_into().unwrap()),
             ),
             Play::new(
                 player,
-                Space::Point(14.try_into().unwrap()),
-                Space::Point(11.try_into().unwrap()),
+                PositionRef::Point(14.try_into().unwrap()),
+                PositionRef::Point(11.try_into().unwrap()),
             ),
             Play::new(
                 player,
-                Space::Point(5.try_into().unwrap()),
-                Space::Point(2.try_into().unwrap()),
+                PositionRef::Point(5.try_into().unwrap()),
+                PositionRef::Point(2.try_into().unwrap()),
             ),
         ]);
 
@@ -546,13 +551,13 @@ mod test {
         let turn = Turn(vec![
             Play::new(
                 player,
-                Space::Point(11.try_into().unwrap()),
-                Space::Point(13.try_into().unwrap()),
+                PositionRef::Point(11.try_into().unwrap()),
+                PositionRef::Point(13.try_into().unwrap()),
             ),
             Play::new(
                 player,
-                Space::Point(11.try_into().unwrap()),
-                Space::Point(14.try_into().unwrap()),
+                PositionRef::Point(11.try_into().unwrap()),
+                PositionRef::Point(14.try_into().unwrap()),
             ),
         ]);
 
@@ -585,13 +590,13 @@ mod test {
         let turn = Turn(vec![
             Play::new(
                 player,
-                Space::Point(20.try_into().unwrap()),
-                Space::Point(23.try_into().unwrap()),
+                PositionRef::Point(20.try_into().unwrap()),
+                PositionRef::Point(23.try_into().unwrap()),
             ),
             Play::new(
                 player,
-                Space::Point(0.try_into().unwrap()),
-                Space::Point(5.try_into().unwrap()),
+                PositionRef::Point(0.try_into().unwrap()),
+                PositionRef::Point(5.try_into().unwrap()),
             ),
         ]);
 
@@ -623,13 +628,13 @@ mod test {
         let turn = Turn(vec![
             Play::new(
                 player,
-                Space::Point(14.try_into().unwrap()),
-                Space::Point(15.try_into().unwrap()),
+                PositionRef::Point(14.try_into().unwrap()),
+                PositionRef::Point(15.try_into().unwrap()),
             ),
             Play::new(
                 player,
-                Space::Point(15.try_into().unwrap()),
-                Space::Point(18.try_into().unwrap()),
+                PositionRef::Point(15.try_into().unwrap()),
+                PositionRef::Point(18.try_into().unwrap()),
             ),
         ]);
 
@@ -660,13 +665,13 @@ mod test {
         let turn = Turn(vec![
             Play::new(
                 player,
-                Space::Bar(player),
-                Space::Point(5.try_into().unwrap()),
+                PositionRef::Bar(player),
+                PositionRef::Point(5.try_into().unwrap()),
             ),
             Play::new(
                 player,
-                Space::Point(17.try_into().unwrap()),
-                Space::Point(21.try_into().unwrap()),
+                PositionRef::Point(17.try_into().unwrap()),
+                PositionRef::Point(21.try_into().unwrap()),
             ),
         ]);
 
@@ -699,13 +704,13 @@ mod test {
         let turn = Turn(vec![
             Play::new(
                 player,
-                Space::Bar(player),
-                Space::Point(3.try_into().unwrap()),
+                PositionRef::Bar(player),
+                PositionRef::Point(3.try_into().unwrap()),
             ),
             Play::new(
                 player,
-                Space::Bar(player),
-                Space::Point(0.try_into().unwrap()),
+                PositionRef::Bar(player),
+                PositionRef::Point(0.try_into().unwrap()),
             ),
         ]);
 
@@ -738,23 +743,23 @@ mod test {
         let turn = Turn(vec![
             Play::new(
                 player,
-                Space::Point(7.try_into().unwrap()),
-                Space::Point(11.try_into().unwrap()),
+                PositionRef::Point(7.try_into().unwrap()),
+                PositionRef::Point(11.try_into().unwrap()),
             ),
             Play::new(
                 player,
-                Space::Point(7.try_into().unwrap()),
-                Space::Point(11.try_into().unwrap()),
+                PositionRef::Point(7.try_into().unwrap()),
+                PositionRef::Point(11.try_into().unwrap()),
             ),
             Play::new(
                 player,
-                Space::Point(11.try_into().unwrap()),
-                Space::Point(15.try_into().unwrap()),
+                PositionRef::Point(11.try_into().unwrap()),
+                PositionRef::Point(15.try_into().unwrap()),
             ),
             Play::new(
                 player,
-                Space::Point(17.try_into().unwrap()),
-                Space::Point(21.try_into().unwrap()),
+                PositionRef::Point(17.try_into().unwrap()),
+                PositionRef::Point(21.try_into().unwrap()),
             ),
         ]);
 
@@ -787,13 +792,13 @@ mod test {
         let turn = Turn(vec![
             Play::new(
                 player,
-                Space::Point(4.try_into().unwrap()),
-                Space::Rail(player),
+                PositionRef::Point(4.try_into().unwrap()),
+                PositionRef::Rail(player),
             ),
             Play::new(
                 player,
-                Space::Point(4.try_into().unwrap()),
-                Space::Point(0.try_into().unwrap()),
+                PositionRef::Point(4.try_into().unwrap()),
+                PositionRef::Point(0.try_into().unwrap()),
             ),
         ]);
 
@@ -825,13 +830,13 @@ mod test {
         let turn = Turn(vec![
             Play::new(
                 player,
-                Space::Point(21.try_into().unwrap()),
-                Space::Rail(player),
+                PositionRef::Point(21.try_into().unwrap()),
+                PositionRef::Rail(player),
             ),
             Play::new(
                 player,
-                Space::Point(22.try_into().unwrap()),
-                Space::Rail(player),
+                PositionRef::Point(22.try_into().unwrap()),
+                PositionRef::Rail(player),
             ),
         ]);
 
@@ -862,13 +867,13 @@ mod test {
         let turn = Turn(vec![
             Play::new(
                 player,
-                Space::Point(18.try_into().unwrap()),
-                Space::Rail(player),
+                PositionRef::Point(18.try_into().unwrap()),
+                PositionRef::Rail(player),
             ),
             Play::new(
                 player,
-                Space::Point(18.try_into().unwrap()),
-                Space::Rail(player),
+                PositionRef::Point(18.try_into().unwrap()),
+                PositionRef::Rail(player),
             ),
         ]);
 
@@ -933,13 +938,13 @@ mod test {
         let turn = Turn(vec![
             Play::new(
                 player,
-                Space::Point(10.try_into().unwrap()),
-                Space::Point(9.try_into().unwrap()),
+                PositionRef::Point(10.try_into().unwrap()),
+                PositionRef::Point(9.try_into().unwrap()),
             ),
             Play::new(
                 player,
-                Space::Point(10.try_into().unwrap()),
-                Space::Point(7.try_into().unwrap()),
+                PositionRef::Point(10.try_into().unwrap()),
+                PositionRef::Point(7.try_into().unwrap()),
             ),
         ]);
 
@@ -961,13 +966,13 @@ mod test {
         let turn = Turn(vec![
             Play::new(
                 player,
-                Space::Point(4.try_into().unwrap()),
-                Space::Rail(player),
+                PositionRef::Point(4.try_into().unwrap()),
+                PositionRef::Rail(player),
             ),
             Play::new(
                 player,
-                Space::Point(3.try_into().unwrap()),
-                Space::Rail(player),
+                PositionRef::Point(3.try_into().unwrap()),
+                PositionRef::Rail(player),
             ),
         ]);
 
@@ -986,8 +991,8 @@ mod test {
 
         let turn = Turn(vec![Play::new(
             player,
-            Space::Point(10.try_into().unwrap()),
-            Space::Point(9.try_into().unwrap()),
+            PositionRef::Point(10.try_into().unwrap()),
+            PositionRef::Point(9.try_into().unwrap()),
         )]);
 
         println!("{game}");
@@ -1006,13 +1011,13 @@ mod test {
         let turn = Turn(vec![
             Play::new(
                 player,
-                Space::Point(10.try_into().unwrap()),
-                Space::Point(9.try_into().unwrap()),
+                PositionRef::Point(10.try_into().unwrap()),
+                PositionRef::Point(9.try_into().unwrap()),
             ),
             Play::new(
                 player,
-                Space::Point(10.try_into().unwrap()),
-                Space::Point(8.try_into().unwrap()),
+                PositionRef::Point(10.try_into().unwrap()),
+                PositionRef::Point(8.try_into().unwrap()),
             ),
         ]);
 
@@ -1033,13 +1038,13 @@ mod test {
         let turn = Turn(vec![
             Play::new(
                 player,
-                Space::Point(10.try_into().unwrap()),
-                Space::Point(9.try_into().unwrap()),
+                PositionRef::Point(10.try_into().unwrap()),
+                PositionRef::Point(9.try_into().unwrap()),
             ),
             Play::new(
                 player,
-                Space::Point(10.try_into().unwrap()),
-                Space::Point(8.try_into().unwrap()),
+                PositionRef::Point(10.try_into().unwrap()),
+                PositionRef::Point(8.try_into().unwrap()),
             ),
         ]);
 
@@ -1059,13 +1064,13 @@ mod test {
         let turn = Turn(vec![
             Play::new(
                 player,
-                Space::Point(23.try_into().unwrap()),
-                Space::Bar(player),
+                PositionRef::Point(23.try_into().unwrap()),
+                PositionRef::Bar(player),
             ),
             Play::new(
                 player,
-                Space::Point(23.try_into().unwrap()),
-                Space::Point(21.try_into().unwrap()),
+                PositionRef::Point(23.try_into().unwrap()),
+                PositionRef::Point(21.try_into().unwrap()),
             ),
         ]);
 
@@ -1086,13 +1091,13 @@ mod test {
         let turn = Turn(vec![
             Play::new(
                 player,
-                Space::Rail(player),
-                Space::Point(0.try_into().unwrap()),
+                PositionRef::Rail(player),
+                PositionRef::Point(0.try_into().unwrap()),
             ),
             Play::new(
                 player,
-                Space::Point(23.try_into().unwrap()),
-                Space::Point(21.try_into().unwrap()),
+                PositionRef::Point(23.try_into().unwrap()),
+                PositionRef::Point(21.try_into().unwrap()),
             ),
         ]);
 
@@ -1110,8 +1115,8 @@ mod test {
 
         let turn = Turn(vec![Play::new(
             player,
-            Space::Point(23.try_into().unwrap()),
-            Space::Point(21.try_into().unwrap()),
+            PositionRef::Point(23.try_into().unwrap()),
+            PositionRef::Point(21.try_into().unwrap()),
         )]);
 
         println!("{game}");
@@ -1130,13 +1135,13 @@ mod test {
         let turn = Turn(vec![
             Play::new(
                 player,
-                Space::Point(23.try_into().unwrap()),
-                Space::Point(22.try_into().unwrap()),
+                PositionRef::Point(23.try_into().unwrap()),
+                PositionRef::Point(22.try_into().unwrap()),
             ),
             Play::new(
                 player,
-                Space::Point(23.try_into().unwrap()),
-                Space::Point(21.try_into().unwrap()),
+                PositionRef::Point(23.try_into().unwrap()),
+                PositionRef::Point(21.try_into().unwrap()),
             ),
         ]);
 
@@ -1156,13 +1161,13 @@ mod test {
         let turn = Turn(vec![
             Play::new(
                 player,
-                Space::Point(10.try_into().unwrap()),
-                Space::Point(11.try_into().unwrap()),
+                PositionRef::Point(10.try_into().unwrap()),
+                PositionRef::Point(11.try_into().unwrap()),
             ),
             Play::new(
                 player,
-                Space::Point(10.try_into().unwrap()),
-                Space::Point(12.try_into().unwrap()),
+                PositionRef::Point(10.try_into().unwrap()),
+                PositionRef::Point(12.try_into().unwrap()),
             ),
         ]);
 
@@ -1183,13 +1188,13 @@ mod test {
         let turn = Turn(vec![
             Play::new(
                 player,
-                Space::Point(10.try_into().unwrap()),
-                Space::Point(9.try_into().unwrap()),
+                PositionRef::Point(10.try_into().unwrap()),
+                PositionRef::Point(9.try_into().unwrap()),
             ),
             Play::new(
                 player,
-                Space::Point(10.try_into().unwrap()),
-                Space::Point(8.try_into().unwrap()),
+                PositionRef::Point(10.try_into().unwrap()),
+                PositionRef::Point(8.try_into().unwrap()),
             ),
         ]);
 
@@ -1210,13 +1215,13 @@ mod test {
         let turn = Turn(vec![
             Play::new(
                 player,
-                Space::Point(3.try_into().unwrap()),
-                Space::Point(0.try_into().unwrap()),
+                PositionRef::Point(3.try_into().unwrap()),
+                PositionRef::Point(0.try_into().unwrap()),
             ),
             Play::new(
                 player,
-                Space::Point(0.try_into().unwrap()),
-                Space::Rail(player),
+                PositionRef::Point(0.try_into().unwrap()),
+                PositionRef::Rail(player),
             ),
         ]);
 
