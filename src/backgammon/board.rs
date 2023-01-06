@@ -2,7 +2,6 @@ use colored::Colorize;
 use itertools::Itertools;
 use std::cell::RefCell;
 use std::fmt::Debug;
-use std::ops::RangeInclusive;
 
 use crate::backgammon::{
     player::Player,
@@ -139,80 +138,6 @@ impl Board {
 }
 
 impl std::fmt::Display for Board {
-    // #[allow(unstable_name_collisions)]
-    // fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    //     fn fmt_point(point: &RefCell<Point>) -> String {
-    //         let count = point.borrow().count;
-    //         let str = if count == 0 {
-    //             format!("{:2}", "░░")
-    //         } else {
-    //             format!("{:02}", point.borrow().count)
-    //         };
-    //         let str = match point.borrow().player {
-    //             Player::Black => str.on_black().white().bold(),
-    //             Player::White => str.on_white().truecolor(0, 0, 0).bold(),
-    //             Player::None => str.normal().dimmed(),
-    //         };
-    //         format!("{str}")
-    //     }
-
-    //     macro_rules! fmt_line {
-    //         ($range:expr, $fn:expr, $rev:expr) => {{
-    //             let mut vec = $range.map($fn).collect::<Vec<_>>();
-    //             vec.insert(vec.len() / 2, "┃    ┃".to_string());
-    //             if $rev {
-    //                 vec.reverse();
-    //             }
-    //             vec.into_iter()
-    //                 .intersperse(" ".to_string())
-    //                 .collect::<String>()
-    //         }};
-    //     }
-
-    //     fn fmt_indices(range: RangeInclusive<usize>, rev: bool) -> colored::ColoredString {
-    //         fmt_line!(range, |i| format!("{i:02}"), rev).bold()
-    //     }
-
-    //     let perspective = if f.alternate() {
-    //         Player::White
-    //     } else {
-    //         Player::Black
-    //     };
-
-    //     let fmt_points = |range: RangeInclusive<usize>, rev: bool| -> String {
-    //         fmt_line!(
-    //             range,
-    //             |i| fmt_point(
-    //                 &self.points[*NormalizedPosition::new(i, perspective)
-    //                     .unwrap()
-    //                     .to_index()
-    //                     .unwrap()]
-    //             ),
-    //             rev
-    //         )
-    //     };
-
-    //     write!(
-    //         f,
-    //         "┏━┳━━━━━━━━━━━━━━━━━━━┳━━━━┳━━━━━━━━━━━━━━━━━━━┳━┓\n\
-    //          ┃ ┃ {                                        } ┃ ┃\n\
-    //          ┃ ┣━━━━━━━━━━━━━━━━━━━┫ {} ┣━━━━━━━━━━━━━━━━━━━┫ ┃\n\
-    //          ┃ ┃ {                                        } ┃ ┃\n\
-    //          ┃ ┣━━━━━━━━━━━━━━━━━━━┫    ┣━━━━━━━━━━━━━━━━━━━┫ ┃ Rail: {} {}\n\
-    //          ┃ ┃ {                                        } ┃ ┃\n\
-    //          ┃ ┣━━━━━━━━━━━━━━━━━━━┫ {} ┣━━━━━━━━━━━━━━━━━━━┫ ┃\n\
-    //          ┃ ┃ {                                        } ┃ ┃\n\
-    //          ┗━┻━━━━━━━━━━━━━━━━━━━┻━━━━┻━━━━━━━━━━━━━━━━━━━┻━┛",
-    //         fmt_indices(13..=24, !f.alternate()),
-    //         fmt_point(self.bar(perspective)),
-    //         fmt_points(13..=24, !f.alternate()),
-    //         fmt_point(self.rail(perspective)),
-    //         fmt_point(self.rail(!perspective)),
-    //         fmt_points(1..=12, f.alternate()),
-    //         fmt_point(self.bar(!perspective)),
-    //         fmt_indices(1..=12, f.alternate()),
-    //     )
-    // }
     #[allow(unstable_name_collisions)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let index_format = |i| format!("{i:02}");

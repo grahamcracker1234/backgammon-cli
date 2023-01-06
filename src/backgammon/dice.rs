@@ -91,26 +91,23 @@ impl Dice {
 #[allow(unstable_name_collisions)]
 impl fmt::Display for Dice {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fn special_char(die: &u8) -> String {
-            match die {
-                1 => "\u{2680}",
-                2 => "\u{2681}",
-                3 => "\u{2682}",
-                4 => "\u{2683}",
-                5 => "\u{2684}",
-                6 => "\u{2685}",
-                _ => "\u{1F3B2}",
-            }
-            .to_string()
-        }
+        let mut special_char = HashMap::new();
+        special_char.insert(1, "\u{2680}");
+        special_char.insert(2, "\u{2681}");
+        special_char.insert(3, "\u{2682}");
+        special_char.insert(4, "\u{2683}");
+        special_char.insert(5, "\u{2684}");
+        special_char.insert(6, "\u{2685}");
 
         let display: String = self
             .dice
             .iter()
-            .map(if f.alternate() {
-                special_char
-            } else {
-                u8::to_string
+            .map(|die| {
+                if f.alternate() {
+                    special_char.get(die).unwrap_or(&"\u{1F3B2}").to_string()
+                } else {
+                    die.to_string()
+                }
             })
             .intersperse("-".to_string())
             .collect();

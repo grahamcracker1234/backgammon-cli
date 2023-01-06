@@ -1,7 +1,7 @@
 use colored::Colorize;
 
 use crate::backgammon::{
-    board::{Board, Space},
+    board::{Board, Space, BOARD_SIZE},
     dice::Dice,
     notation::{Notation, Play, Turn},
     player::Player,
@@ -9,7 +9,7 @@ use crate::backgammon::{
     Error,
 };
 
-use super::board::BOARD_SIZE;
+use std::{io, io::Write};
 
 #[derive(Clone)]
 pub struct Game {
@@ -51,7 +51,14 @@ impl Game {
             //         .collect::<Vec<_>>()
             // );
 
-            let notation = self.get_notation();
+            let notation = match self.get_notation() {
+                Ok(notation) => notation,
+                Err(error) => {
+                    println!("{}", error.to_string().red().bold());
+                    continue;
+                }
+            };
+
             let turn = match notation.turn() {
                 Ok(turn) => turn,
                 Err(error) => {
@@ -72,37 +79,18 @@ impl Game {
     }
 
     #[allow(unstable_name_collisions)]
-    fn get_notation(&self) -> Notation {
-        use std::{io, io::Write};
-        print!(
-            "{}",
-            format!(
-                "{} to play ({}): ",
-                match self.current_player {
-                    Player::Black => "Black",
-                    Player::White => "White",
-                    Player::None =>
-                        panic!("Attempting to get plays from '{:?}'.", self.current_player),
-                },
-                self.current_roll
-            )
-            .green()
-            .italic()
-        );
-
-        io::stdout()
-            .flush()
-            .expect("Failed to flush standard output.");
+    fn get_notation(&self) -> io::Result<Notation> {
+        let prompt = format!("{} to play ({}): ", self.current_player, self.current_roll);
+        print!("{}", prompt.green().italic());
+        io::stdout().flush()?;
 
         let mut input = String::new();
-        io::stdin()
-            .read_line(&mut input)
-            .expect("Failed to read input");
+        io::stdin().read_line(&mut input)?;
 
-        Notation::new(input, self.current_player)
+        Ok(Notation::new(input, self.current_player))
     }
 
-    pub(super) fn take_turn(&mut self, turn: Turn) -> Result<(), Error> {
+    pub(crate) fn take_turn(&mut self, turn: Turn) -> Result<(), Error> {
         let Turn(plays) = turn;
         for play in plays {
             self.check_play(&play)?;
@@ -116,7 +104,7 @@ impl Game {
         Ok(())
     }
 
-    pub(super) fn check_play(&self, play: &Play) -> Result<(), Error> {
+    pub(crate) fn check_play(&self, play: &Play) -> Result<(), Error> {
         // Ensure current player is playing.
         if self.current_player != play.player {
             return Err(Error::PlayMadeOutOfTurn);
