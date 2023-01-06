@@ -12,7 +12,7 @@ pub(crate) struct NormalizedPosition(usize, Player);
 
 // #[allow(dead_code)]
 impl NormalizedPosition {
-    /// Create a `NormalizedPosition`
+    /// Create a `NormalizedPosition`.
     pub fn new(position: usize, player: Player) -> Result<Self, Error> {
         if player == Player::None {
             return Err(Error::InvalidNormalizedPosition(position, player));

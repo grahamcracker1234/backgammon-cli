@@ -14,8 +14,6 @@ pub(crate) enum Error {
     InvalidNormalizedPosition(usize, Player),
     InvalidDenormalizedPosition(usize),
     InvalidIndexPosition(usize),
-    // InvalidNotationPosition(usize),
-    // InvalidIndexPosition(usize),
     InvalidNotation(String),
     InvalidPlayLength(u8),
     IncompleteTurn,
@@ -45,8 +43,6 @@ impl std::fmt::Display for Error {
             Error::InvalidIndexPosition(pos) => {
                 write!(f, "cannot create `IndexPosition` from `{pos}`")
             }
-            // Error::InvalidNotationPosition(pos) => write!(f, "position '{pos}' is not valid"),
-            // Error::InvalidIndexPosition(index) => write!(f, "index '{index}' is not valid"),
             Error::InvalidNotation(notation) => write!(f, "notation '{notation}' is not valid"),
             Error::InvalidPlayLength(len) => write!(f, "play of length '{len}' is not valid"),
             Error::IncompleteTurn => write!(f, "did not use all possible plays"),

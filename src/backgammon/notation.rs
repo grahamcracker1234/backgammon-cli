@@ -8,22 +8,29 @@ use crate::backgammon::{
     Error,
 };
 
+/// Represents [backgammon notation](https://en.wikipedia.org/wiki/Backgammon_notation)
+/// for the given input and player.
 pub(crate) struct Notation {
+    /// The notation
     input: String,
+    /// The player
     player: Player,
 }
 
 impl Notation {
+    /// Create a `Notation`.
     pub fn new(input: String, player: Player) -> Self {
         Self { input, player }
     }
 
+    /// Tries to generate a `Turn` from itself.
     pub fn turn(&self) -> Result<Turn, Error> {
-        let re = Regex::new(r"^(?:(?:\d+)|(?:bar))(?:/\d+)*(?:/(?:(?:\d+)|(?:off)))$")
+        let re = Regex::new(r"^((\d+)|(bar))(/\d+)*(/((\d+)|(off)))$")
             .expect("regex should always be valid");
 
-        // Get all play groups
-        let play_groups = self
+        // Get all play groups, the plays of each whitespace-seperated group of
+        // invididual simple notations.
+        let play_groups: Result<Vec<_>, _> = self
             .input
             .split_whitespace()
             .map(|group| match re.find(group) {
@@ -37,12 +44,10 @@ impl Notation {
             .flatten_ok()
             .collect();
 
-        match play_groups {
-            Err(error) => Err(error),
-            Ok(play_groups) => Ok(Turn(play_groups)),
-        }
+        play_groups.map(Turn)
     }
 
+    /// Gets the group of plays of a given simple notation (notation without whitespace).
     fn get_play_group(&self) -> Result<Vec<Play>, Error> {
         let spaces = self.get_board_spaces()?;
         let plays = spaces
@@ -53,6 +58,7 @@ impl Notation {
         Ok(plays)
     }
 
+    /// Converts the simple notation's (notation without whitespace) input into a list of spaces.
     fn get_board_spaces(&self) -> Result<Vec<Space>, Error> {
         let spaces = self.input.split('/');
         spaces
