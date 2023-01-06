@@ -8,7 +8,7 @@ use crate::backgammon::{
     Error,
 };
 
-pub(super) struct Notation {
+pub(crate) struct Notation {
     input: String,
     player: Player,
 }
@@ -88,8 +88,8 @@ impl Play {
     }
 
     pub fn is_valid_direction(&self, board: &Board) -> bool {
-        let to = self.to.point(board).borrow();
-        let from = self.from.point(board).borrow();
+        let to = self.to.point(board);
+        let from = self.from.point(board);
 
         match self.player {
             Player::White => to.position > from.position,

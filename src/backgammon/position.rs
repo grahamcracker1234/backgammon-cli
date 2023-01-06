@@ -25,14 +25,14 @@ impl NormalizedPosition {
         }
     }
 
-    /// Denormalize the given `NormalizedPosition` from a `Player` perspective.
-    pub fn denormalize(&self) -> Result<DenormalizedPosition, Error> {
-        match self.1 {
-            Player::Black => self.0.try_into(),
-            Player::White => ((BOARD_SIZE + 1) - self.0).try_into(),
-            Player::None => panic!("cannot denormalize with perspective of `Player::None`"),
-        }
-    }
+    // /// Denormalize the given `NormalizedPosition` from a `Player` perspective.
+    // pub fn denormalize(&self) -> Result<DenormalizedPosition, Error> {
+    //     match self.1 {
+    //         Player::Black => self.0.try_into(),
+    //         Player::White => ((BOARD_SIZE + 1) - self.0).try_into(),
+    //         Player::None => panic!("cannot denormalize with perspective of `Player::None`"),
+    //     }
+    // }
 
     /// Converts the given `NormalizedPosition` to an `IndexPosition` from a
     /// `Player` perspective.
@@ -94,31 +94,31 @@ impl Display for NormalizedPosition {
 pub(crate) struct DenormalizedPosition(usize);
 
 // #[allow(dead_code)]
-impl DenormalizedPosition {
-    /// Normalize the given `DenormalizedPosition` to a `Player` perspective.
-    ///
-    /// The value must be contained within range `0..=25` for `NormalizedPosition`
-    /// to be instantiated from `usize`, thus when this method is called, the
-    /// `DenormalizedPosition` is guaranteed to be in range `0..=25`.
-    pub fn normalize(self, perspective: Player) -> NormalizedPosition {
-        match perspective {
-            Player::Black => NormalizedPosition::new(self.0, perspective),
-            Player::White => NormalizedPosition::new((BOARD_SIZE + 1) - self.0, perspective),
-            Player::None => panic!("cannot normalize with perspective of `Player::None`"),
-        }
-        .unwrap()
-    }
+// impl DenormalizedPosition {
+//     /// Normalize the given `DenormalizedPosition` to a `Player` perspective.
+//     ///
+//     /// The value must be contained within range `0..=25` for `NormalizedPosition`
+//     /// to be instantiated from `usize`, thus when this method is called, the
+//     /// `DenormalizedPosition` is guaranteed to be in range `0..=25`.
+//     pub fn normalize(self, perspective: Player) -> NormalizedPosition {
+//         match perspective {
+//             Player::Black => NormalizedPosition::new(self.0, perspective),
+//             Player::White => NormalizedPosition::new((BOARD_SIZE + 1) - self.0, perspective),
+//             Player::None => panic!("cannot normalize with perspective of `Player::None`"),
+//         }
+//         .unwrap()
+//     }
 
-    /// Converts the given `DenormalizedPosition` to an `IndexPosition`.
-    pub fn to_index(self) -> Result<IndexPosition, Error> {
-        // Here to avoid underflow errors from unsigned subtraction.
-        if self.0 == 0 || self.0 == (BOARD_SIZE + 1) {
-            return Err(Error::InvalidIndexPosition(self.0));
-        }
+//     /// Converts the given `DenormalizedPosition` to an `IndexPosition`.
+//     pub fn to_index(self) -> Result<IndexPosition, Error> {
+//         // Here to avoid underflow errors from unsigned subtraction.
+//         if self.0 == 0 || self.0 == (BOARD_SIZE + 1) {
+//             return Err(Error::InvalidIndexPosition(self.0));
+//         }
 
-        (self.0 - 1).try_into()
-    }
-}
+//         (self.0 - 1).try_into()
+//     }
+// }
 
 /// Tries to create a new `DenormalizedPosition` from a `usize` validating it is
 /// contained within the range `0..=25`.
