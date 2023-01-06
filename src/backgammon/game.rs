@@ -104,6 +104,7 @@ impl Game {
         Ok(())
     }
 
+    /// Checks whether a given play can be made, returning a result containing the error if
     pub(crate) fn check_play(&self, play: &Play) -> Result<(), Error> {
         // Ensure current player is playing.
         if self.current_player != play.player {
@@ -111,7 +112,7 @@ impl Game {
         }
 
         // Ensure that if there is a piece in the bar it is played.
-        if self.board.bar(play.player).borrow().count > 0 && !matches!(play.from, Space::Bar(_)) {
+        if self.board.bar(play.player).count > 0 && !matches!(play.from, Space::Bar(_)) {
             return Err(Error::PlayMadeWithBarFilled);
         }
 
@@ -130,8 +131,8 @@ impl Game {
             return Err(Error::InvalidBearOff);
         }
 
-        let from = play.from.point(&self.board).borrow();
-        let to = play.to.point(&self.board).borrow();
+        let from = play.from.point(&self.board);
+        let to = play.to.point(&self.board);
 
         // Ensure there is a piece to play.
         if from.count == 0 {
@@ -154,7 +155,7 @@ impl Game {
         }
 
         // Ensure play is possible from the dice rolls.
-        let len = to.distance(&from).try_into().expect("value was truncated");
+        let len = to.distance(from).try_into().expect("value was truncated");
         if !self.current_roll.check(len) {
             // Ensure a piece can be borne off with a greater roll than necessary only if there are no pieces behind it.
             let Space::Point(index) = play.from else {
@@ -170,16 +171,19 @@ impl Game {
     }
 
     pub(super) fn make_play(&mut self, play: &Play) {
-        let mut to = play.to.point(&self.board).borrow_mut();
-        let mut from = play.from.point(&self.board).borrow_mut();
+        // let board_borrow = &self.board;
+        let to = play.to.point(&self.board);
+        let from = play.from.point(&self.board);
 
-        // Remove possible play from the dice rolls ensuring that the proper die is removed if a piece was borne off with a greater than necessary roll.
-        let len = to.distance(&from).try_into().expect("value was truncated");
+        // Remove possible play from the dice rolls ensuring that the proper die
+        // is removed if a piece was borne off with a greater than necessary roll.
+        let len = to.distance(from).try_into().expect("value was truncated");
         // let len = to.distance(&from).try_into().expect("value was truncated");
         if self.current_roll.check(len) {
             self.current_roll.remove(len);
         } else {
-            // Ensure a piece can be borne off with a greater roll than necessary only if there are no pieces behind it.
+            // Ensure a piece can be borne off with a greater roll than necessary
+            //only if there are no pieces behind it.
             let Space::Point(index) = play.from else {
                 panic!("osdjfo");
             };
@@ -189,19 +193,27 @@ impl Game {
             }
         }
 
-        // If there is a blot where the player is moving to, then send it to their bar.
+        // If there is a blot where the player is moving to, then send it to
+        // their bar.
         if to.player == !play.player && to.count == 1 {
-            self.board.bar(to.player).borrow_mut().count += 1;
+            let player = to.player;
+            let bar = self.board.bar_mut(player);
+            bar.count += 1;
         }
 
         // Make the play.
+        let from = play.from.point_mut(&mut self.board);
         from.count -= 1;
+
+        let to = play.to.point_mut(&mut self.board);
         to.player = play.player;
         to.count += 1;
 
-        // Reset the player of the previous position if it is empty and not from the bar
+        // Reset the player of the previous position if it is empty and not from
+        // the bar
+        let from = play.from.point(&self.board);
         if from.count == 0 && !matches!(play.from, Space::Bar(_)) {
-            from.player = Player::None;
+            play.from.point_mut(&mut self.board).player = Player::None;
         }
     }
 
@@ -212,13 +224,13 @@ impl Game {
 
     fn get_available_plays(&self) -> impl Iterator<Item = Play> + '_ {
         fn board_iter(board: &Board, player: Player) -> Box<dyn Iterator<Item = Space> + '_> {
-            if board.bar(player).borrow().count > 0 {
+            if board.bar(player).count > 0 {
                 Box::new([Space::Bar(player)].into_iter())
             } else {
                 Box::new(
                     (0..BOARD_SIZE)
                         .map(|i| Space::Point(IndexPosition::try_from(i).unwrap()))
-                        .filter(move |p| p.point(board).borrow().player == player),
+                        .filter(move |p| p.point(board).player == player),
                 )
             }
         }
@@ -234,7 +246,7 @@ impl Game {
                 .flat_map(|roll| {
                     let from = board_position.clone();
 
-                    let point = board_position.point(&self.board).borrow();
+                    let point = board_position.point(&self.board);
                     // if self.current_player != point.player {
                     //     return Err(Error::PlayMadeOutOfTurn);
                     // }
@@ -287,8 +299,8 @@ mod test {
     #[test]
     fn black_1() {
         let player = Player::Black;
-        let board = Board::empty();
-        board.point(10).borrow_mut().set(5, player);
+        let mut board = Board::empty();
+        board.point_mut(10).set(5, player);
 
         let mut game = Game::from(player, Dice::from([3, 5]), board);
 
@@ -311,10 +323,10 @@ mod test {
 
         println!("{game}");
 
-        let board = Board::empty();
-        board.point(10).borrow_mut().set(3, player);
-        board.point(7).borrow_mut().set(1, player);
-        board.point(5).borrow_mut().set(1, player);
+        let mut board = Board::empty();
+        board.point_mut(10).set(3, player);
+        board.point_mut(7).set(1, player);
+        board.point_mut(5).set(1, player);
 
         println!("{board}");
 
@@ -324,10 +336,10 @@ mod test {
     #[test]
     fn black_2() {
         let player = Player::Black;
-        let board = Board::empty();
-        board.point(10).borrow_mut().set(5, player);
-        board.point(20).borrow_mut().set(3, player);
-        board.point(4).borrow_mut().set(3, player);
+        let mut board = Board::empty();
+        board.point_mut(10).set(5, player);
+        board.point_mut(20).set(3, player);
+        board.point_mut(4).set(3, player);
 
         let mut game = Game::from(player, Dice::from([2, 6]), board);
 
@@ -350,11 +362,11 @@ mod test {
 
         println!("{game}");
 
-        let board = Board::empty();
-        board.point(10).borrow_mut().set(4, player);
-        board.point(20).borrow_mut().set(2, player);
-        board.point(18).borrow_mut().set(1, player);
-        board.point(4).borrow_mut().set(4, player);
+        let mut board = Board::empty();
+        board.point_mut(10).set(4, player);
+        board.point_mut(20).set(2, player);
+        board.point_mut(18).set(1, player);
+        board.point_mut(4).set(4, player);
 
         println!("{board}");
 
@@ -364,8 +376,8 @@ mod test {
     #[test]
     fn black_3() {
         let player = Player::Black;
-        let board = Board::empty();
-        board.point(15).borrow_mut().set(7, player);
+        let mut board = Board::empty();
+        board.point_mut(15).set(7, player);
 
         let mut game = Game::from(player, Dice::from([1, 3]), board);
 
@@ -388,9 +400,9 @@ mod test {
 
         println!("{game}");
 
-        let board = Board::empty();
-        board.point(15).borrow_mut().set(6, player);
-        board.point(11).borrow_mut().set(1, player);
+        let mut board = Board::empty();
+        board.point_mut(15).set(6, player);
+        board.point_mut(11).set(1, player);
 
         println!("{board}");
 
@@ -400,9 +412,9 @@ mod test {
     #[test]
     fn black_from_bar_1() {
         let player = Player::Black;
-        let board = Board::empty();
-        board.bar(player).borrow_mut().set(1, player);
-        board.point(7).borrow_mut().set(2, player);
+        let mut board = Board::empty();
+        board.bar_mut(player).set(1, player);
+        board.point_mut(7).set(2, player);
 
         let mut game = Game::from(player, Dice::from([4, 6]), board);
 
@@ -425,10 +437,10 @@ mod test {
 
         println!("{game}");
 
-        let board = Board::empty();
-        board.point(18).borrow_mut().set(1, player);
-        board.point(7).borrow_mut().set(1, player);
-        board.point(3).borrow_mut().set(1, player);
+        let mut board = Board::empty();
+        board.point_mut(18).set(1, player);
+        board.point_mut(7).set(1, player);
+        board.point_mut(3).set(1, player);
 
         println!("{board}");
 
@@ -438,10 +450,10 @@ mod test {
     #[test]
     fn black_from_bar_2() {
         let player = Player::Black;
-        let board = Board::empty();
-        board.bar(player).borrow_mut().set(2, player);
-        board.point(23).borrow_mut().set(2, player);
-        board.point(4).borrow_mut().set(8, player);
+        let mut board = Board::empty();
+        board.bar_mut(player).set(2, player);
+        board.point_mut(23).set(2, player);
+        board.point_mut(4).set(8, player);
 
         let mut game = Game::from(player, Dice::from([1, 2]), board);
 
@@ -464,10 +476,10 @@ mod test {
 
         println!("{game}");
 
-        let board = Board::empty();
-        board.point(23).borrow_mut().set(3, player);
-        board.point(22).borrow_mut().set(1, player);
-        board.point(4).borrow_mut().set(8, player);
+        let mut board = Board::empty();
+        board.point_mut(23).set(3, player);
+        board.point_mut(22).set(1, player);
+        board.point_mut(4).set(8, player);
 
         println!("{board}");
 
@@ -477,9 +489,9 @@ mod test {
     #[test]
     fn black_doubles_1() {
         let player = Player::Black;
-        let board = Board::empty();
-        board.point(17).borrow_mut().set(2, player);
-        board.point(5).borrow_mut().set(8, player);
+        let mut board = Board::empty();
+        board.point_mut(17).set(2, player);
+        board.point_mut(5).set(8, player);
 
         let mut game = Game::from(player, Dice::from([3, 3]), board);
 
@@ -512,11 +524,11 @@ mod test {
 
         println!("{game}");
 
-        let board = Board::empty();
-        board.point(14).borrow_mut().set(1, player);
-        board.point(11).borrow_mut().set(1, player);
-        board.point(5).borrow_mut().set(7, player);
-        board.point(2).borrow_mut().set(1, player);
+        let mut board = Board::empty();
+        board.point_mut(14).set(1, player);
+        board.point_mut(11).set(1, player);
+        board.point_mut(5).set(7, player);
+        board.point_mut(2).set(1, player);
 
         println!("{board}");
 
@@ -526,8 +538,8 @@ mod test {
     #[test]
     fn white_1() {
         let player = Player::White;
-        let board = Board::empty();
-        board.point(11).borrow_mut().set(5, player);
+        let mut board = Board::empty();
+        board.point_mut(11).set(5, player);
 
         let mut game = Game::from(player, Dice::from([2, 3]), board);
 
@@ -550,10 +562,10 @@ mod test {
 
         println!("{game}");
 
-        let board = Board::empty();
-        board.point(11).borrow_mut().set(3, player);
-        board.point(13).borrow_mut().set(1, player);
-        board.point(14).borrow_mut().set(1, player);
+        let mut board = Board::empty();
+        board.point_mut(11).set(3, player);
+        board.point_mut(13).set(1, player);
+        board.point_mut(14).set(1, player);
 
         println!("{board}");
 
@@ -563,10 +575,10 @@ mod test {
     #[test]
     fn white_2() {
         let player = Player::White;
-        let board = Board::empty();
-        board.point(20).borrow_mut().set(5, player);
-        board.point(0).borrow_mut().set(3, player);
-        board.point(5).borrow_mut().set(3, player);
+        let mut board = Board::empty();
+        board.point_mut(20).set(5, player);
+        board.point_mut(0).set(3, player);
+        board.point_mut(5).set(3, player);
 
         let mut game = Game::from(player, Dice::from([3, 5]), board);
 
@@ -589,11 +601,11 @@ mod test {
 
         println!("{game}");
 
-        let board = Board::empty();
-        board.point(20).borrow_mut().set(4, player);
-        board.point(0).borrow_mut().set(2, player);
-        board.point(23).borrow_mut().set(1, player);
-        board.point(5).borrow_mut().set(4, player);
+        let mut board = Board::empty();
+        board.point_mut(20).set(4, player);
+        board.point_mut(0).set(2, player);
+        board.point_mut(23).set(1, player);
+        board.point_mut(5).set(4, player);
 
         println!("{board}");
 
@@ -603,8 +615,8 @@ mod test {
     #[test]
     fn white_3() {
         let player = Player::White;
-        let board = Board::empty();
-        board.point(14).borrow_mut().set(4, player);
+        let mut board = Board::empty();
+        board.point_mut(14).set(4, player);
 
         let mut game = Game::from(player, Dice::from([1, 3]), board);
 
@@ -627,9 +639,9 @@ mod test {
 
         println!("{game}");
 
-        let board = Board::empty();
-        board.point(14).borrow_mut().set(3, player);
-        board.point(18).borrow_mut().set(1, player);
+        let mut board = Board::empty();
+        board.point_mut(14).set(3, player);
+        board.point_mut(18).set(1, player);
 
         println!("{board}");
 
@@ -639,9 +651,9 @@ mod test {
     #[test]
     fn white_from_bar_1() {
         let player = Player::White;
-        let board = Board::empty();
-        board.bar(player).borrow_mut().set(1, player);
-        board.point(17).borrow_mut().set(2, player);
+        let mut board = Board::empty();
+        board.bar_mut(player).set(1, player);
+        board.point_mut(17).set(2, player);
 
         let mut game = Game::from(player, Dice::from([6, 4]), board);
 
@@ -664,10 +676,10 @@ mod test {
 
         println!("{game}");
 
-        let board = Board::empty();
-        board.point(17).borrow_mut().set(1, player);
-        board.point(21).borrow_mut().set(1, player);
-        board.point(5).borrow_mut().set(1, player);
+        let mut board = Board::empty();
+        board.point_mut(17).set(1, player);
+        board.point_mut(21).set(1, player);
+        board.point_mut(5).set(1, player);
 
         println!("{board}");
 
@@ -677,10 +689,10 @@ mod test {
     #[test]
     fn white_from_bar_2() {
         let player = Player::White;
-        let board = Board::empty();
-        board.bar(player).borrow_mut().set(2, player);
-        board.point(23).borrow_mut().set(2, player);
-        board.point(3).borrow_mut().set(8, player);
+        let mut board = Board::empty();
+        board.bar_mut(player).set(2, player);
+        board.point_mut(23).set(2, player);
+        board.point_mut(3).set(8, player);
 
         let mut game = Game::from(player, Dice::from([4, 1]), board);
 
@@ -703,10 +715,10 @@ mod test {
 
         println!("{game}");
 
-        let board = Board::empty();
-        board.point(23).borrow_mut().set(2, player);
-        board.point(3).borrow_mut().set(9, player);
-        board.point(0).borrow_mut().set(1, player);
+        let mut board = Board::empty();
+        board.point_mut(23).set(2, player);
+        board.point_mut(3).set(9, player);
+        board.point_mut(0).set(1, player);
 
         println!("{board}");
 
@@ -716,10 +728,10 @@ mod test {
     #[test]
     fn white_doubles_1() {
         let player = Player::White;
-        let board = Board::empty();
-        board.point(7).borrow_mut().set(10, player);
-        board.point(15).borrow_mut().set(3, player);
-        board.point(17).borrow_mut().set(3, player);
+        let mut board = Board::empty();
+        board.point_mut(7).set(10, player);
+        board.point_mut(15).set(3, player);
+        board.point_mut(17).set(3, player);
 
         let mut game = Game::from(player, Dice::from([4, 4]), board);
 
@@ -752,12 +764,12 @@ mod test {
 
         println!("{game}");
 
-        let board = Board::empty();
-        board.point(7).borrow_mut().set(8, player);
-        board.point(11).borrow_mut().set(1, player);
-        board.point(15).borrow_mut().set(4, player);
-        board.point(17).borrow_mut().set(2, player);
-        board.point(21).borrow_mut().set(1, player);
+        let mut board = Board::empty();
+        board.point_mut(7).set(8, player);
+        board.point_mut(11).set(1, player);
+        board.point_mut(15).set(4, player);
+        board.point_mut(17).set(2, player);
+        board.point_mut(21).set(1, player);
 
         println!("{board}");
 
@@ -767,8 +779,8 @@ mod test {
     #[test]
     fn bear_off_1() {
         let player = Player::Black;
-        let board = Board::empty();
-        board.point(4).borrow_mut().set(3, player);
+        let mut board = Board::empty();
+        board.point_mut(4).set(3, player);
 
         let mut game = Game::from(player, Dice::from([5, 4]), board);
 
@@ -791,10 +803,10 @@ mod test {
 
         println!("{game}");
 
-        let board = Board::empty();
-        board.point(4).borrow_mut().set(1, player);
-        board.rail(player).borrow_mut().set(1, player);
-        board.point(0).borrow_mut().set(1, player);
+        let mut board = Board::empty();
+        board.point_mut(4).set(1, player);
+        board.rail_mut(player).set(1, player);
+        board.point_mut(0).set(1, player);
 
         println!("{board}");
 
@@ -804,9 +816,9 @@ mod test {
     #[test]
     fn bear_off_2() {
         let player = Player::White;
-        let board = Board::empty();
-        board.point(21).borrow_mut().set(3, player);
-        board.point(22).borrow_mut().set(3, player);
+        let mut board = Board::empty();
+        board.point_mut(21).set(3, player);
+        board.point_mut(22).set(3, player);
 
         let mut game = Game::from(player, Dice::from([2, 3]), board);
 
@@ -829,10 +841,10 @@ mod test {
 
         println!("{game}");
 
-        let board = Board::empty();
-        board.point(21).borrow_mut().set(2, player);
-        board.point(22).borrow_mut().set(2, player);
-        board.rail(player).borrow_mut().set(2, player);
+        let mut board = Board::empty();
+        board.point_mut(21).set(2, player);
+        board.point_mut(22).set(2, player);
+        board.rail_mut(player).set(2, player);
 
         println!("{board}");
 
@@ -842,8 +854,8 @@ mod test {
     #[test]
     fn bear_off_3() {
         let player = Player::White;
-        let board = Board::empty();
-        board.point(18).borrow_mut().set(3, player);
+        let mut board = Board::empty();
+        board.point_mut(18).set(3, player);
 
         let mut game = Game::from(player, Dice::from([6, 5]), board);
 
@@ -866,9 +878,9 @@ mod test {
 
         println!("{game}");
 
-        let board = Board::empty();
-        board.point(18).borrow_mut().set(1, player);
-        board.rail(player).borrow_mut().set(2, player);
+        let mut board = Board::empty();
+        board.point_mut(18).set(1, player);
+        board.rail_mut(player).set(2, player);
 
         println!("{board}");
 
@@ -878,10 +890,10 @@ mod test {
     #[test]
     fn no_moves_1() {
         let player = Player::Black;
-        let board = Board::empty();
-        board.point(10).borrow_mut().set(2, Player::White);
-        board.point(11).borrow_mut().set(2, Player::White);
-        board.point(13).borrow_mut().set(2, player);
+        let mut board = Board::empty();
+        board.point_mut(10).set(2, Player::White);
+        board.point_mut(11).set(2, Player::White);
+        board.point_mut(13).set(2, player);
 
         let mut game = Game::from(player, Dice::from([2, 3]), board);
 
@@ -895,11 +907,11 @@ mod test {
     #[test]
     fn no_moves_2() {
         let player = Player::Black;
-        let board = Board::empty();
-        board.bar(player).borrow_mut().set(1, player);
-        board.point(23).borrow_mut().set(2, Player::White);
-        board.point(20).borrow_mut().set(2, Player::White);
-        board.point(13).borrow_mut().set(1, player);
+        let mut board = Board::empty();
+        board.bar_mut(player).set(1, player);
+        board.point_mut(23).set(2, Player::White);
+        board.point_mut(20).set(2, Player::White);
+        board.point_mut(13).set(1, player);
 
         let mut game = Game::from(player, Dice::from([1, 4]), board);
 
@@ -913,8 +925,8 @@ mod test {
     #[test]
     fn invalid_play_length_1() {
         let player = Player::Black;
-        let board = Board::empty();
-        board.point(10).borrow_mut().set(2, player);
+        let mut board = Board::empty();
+        board.point_mut(10).set(2, player);
 
         let mut game = Game::from(player, Dice::from([1, 2]), board);
 
@@ -939,10 +951,10 @@ mod test {
     #[test]
     fn invalid_play_length_2() {
         let player = Player::Black;
-        let board = Board::empty();
-        board.point(5).borrow_mut().set(1, player);
-        board.point(4).borrow_mut().set(2, player);
-        board.point(3).borrow_mut().set(1, player);
+        let mut board = Board::empty();
+        board.point_mut(5).set(1, player);
+        board.point_mut(4).set(2, player);
+        board.point_mut(3).set(1, player);
 
         let mut game = Game::from(player, Dice::from([3, 6]), board);
 
@@ -967,8 +979,8 @@ mod test {
     #[test]
     fn incomplete_turn() {
         let player = Player::Black;
-        let board = Board::empty();
-        board.point(10).borrow_mut().set(2, player);
+        let mut board = Board::empty();
+        board.point_mut(10).set(2, player);
 
         let mut game = Game::from(player, Dice::from([1, 2]), board);
 
@@ -986,8 +998,8 @@ mod test {
     #[test]
     fn play_made_out_of_turn() {
         let player = Player::Black;
-        let board = Board::empty();
-        board.point(10).borrow_mut().set(2, player);
+        let mut board = Board::empty();
+        board.point_mut(10).set(2, player);
 
         let mut game = Game::from(Player::White, Dice::from([1, 2]), board);
 
@@ -1012,9 +1024,9 @@ mod test {
     #[test]
     fn play_made_with_bar_filled() {
         let player = Player::Black;
-        let board = Board::empty();
-        board.bar(player).borrow_mut().set(1, player);
-        board.point(10).borrow_mut().set(2, player);
+        let mut board = Board::empty();
+        board.bar_mut(player).set(1, player);
+        board.point_mut(10).set(2, player);
 
         let mut game = Game::from(player, Dice::from([1, 2]), board);
 
@@ -1039,8 +1051,8 @@ mod test {
     #[test]
     fn play_made_to_bar_filled() {
         let player = Player::Black;
-        let board = Board::empty();
-        board.point(23).borrow_mut().set(2, player);
+        let mut board = Board::empty();
+        board.point_mut(23).set(2, player);
 
         let mut game = Game::from(player, Dice::from([1, 2]), board);
 
@@ -1065,9 +1077,9 @@ mod test {
     #[test]
     fn play_made_from_rail_filled() {
         let player = Player::Black;
-        let board = Board::empty();
-        board.rail(player).borrow_mut().set(1, player);
-        board.point(23).borrow_mut().set(2, player);
+        let mut board = Board::empty();
+        board.rail_mut(player).set(1, player);
+        board.point_mut(23).set(2, player);
 
         let mut game = Game::from(player, Dice::from([1, 2]), board);
 
@@ -1110,8 +1122,8 @@ mod test {
     #[test]
     fn play_made_with_opposing_piece() {
         let player = Player::Black;
-        let board = Board::empty();
-        board.point(23).borrow_mut().set(2, Player::White);
+        let mut board = Board::empty();
+        board.point_mut(23).set(2, Player::White);
 
         let mut game = Game::from(player, Dice::from([1, 2]), board);
 
@@ -1136,8 +1148,8 @@ mod test {
     #[test]
     fn invalid_play_direction() {
         let player = Player::Black;
-        let board = Board::empty();
-        board.point(10).borrow_mut().set(2, player);
+        let mut board = Board::empty();
+        board.point_mut(10).set(2, player);
 
         let mut game = Game::from(player, Dice::from([1, 2]), board);
 
@@ -1162,9 +1174,9 @@ mod test {
     #[test]
     fn play_made_onto_opposing_piece() {
         let player = Player::Black;
-        let board = Board::empty();
-        board.point(10).borrow_mut().set(2, player);
-        board.point(8).borrow_mut().set(2, Player::White);
+        let mut board = Board::empty();
+        board.point_mut(10).set(2, player);
+        board.point_mut(8).set(2, Player::White);
 
         let mut game = Game::from(player, Dice::from([1, 2]), board);
 
@@ -1189,9 +1201,9 @@ mod test {
     #[test]
     fn invalid_bear_off() {
         let player = Player::Black;
-        let board = Board::empty();
-        board.point(6).borrow_mut().set(1, player);
-        board.point(3).borrow_mut().set(2, player);
+        let mut board = Board::empty();
+        board.point_mut(6).set(1, player);
+        board.point_mut(3).set(2, player);
 
         let mut game = Game::from(player, Dice::from([1, 3]), board);
 

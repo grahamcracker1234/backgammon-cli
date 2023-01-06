@@ -104,7 +104,7 @@ impl fmt::Display for Dice {
             .iter()
             .map(|die| {
                 if f.alternate() {
-                    special_char.get(die).unwrap_or(&"\u{1F3B2}").to_string()
+                    (*special_char.get(die).unwrap_or(&"\u{1F3B2}")).to_string()
                 } else {
                     die.to_string()
                 }
