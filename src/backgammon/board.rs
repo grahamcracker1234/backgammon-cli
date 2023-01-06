@@ -1,9 +1,12 @@
 use colored::Colorize;
 use itertools::Itertools;
 use std::cell::RefCell;
-use std::ops::RangeInclusive;
+use std::fmt::Debug;
 
-use crate::backgammon::{notation::Notation, player::Player};
+use crate::backgammon::{
+    player::Player,
+    position::{DenormalizedPosition, IndexPosition, NormalizedPosition},
+};
 
 pub(crate) const BOARD_SIZE: usize = 24;
 
@@ -20,19 +23,41 @@ pub(crate) struct Board {
 impl Board {
     pub fn empty() -> Self {
         let points: [_; BOARD_SIZE] = (0..BOARD_SIZE)
-            .map(|i| RefCell::new(Point::new(i + 1, 0, Player::None)))
+            .map(|i| {
+                RefCell::new(Point::new(
+                    IndexPosition::try_from(i).unwrap().denormalize(),
+                    0,
+                    Player::None,
+                ))
+            })
             .collect::<Vec<_>>()
             .try_into()
             .unwrap();
 
         let bar = [
-            RefCell::new(Point::new(BOARD_SIZE + 1, 0, Player::Black)),
-            RefCell::new(Point::new(0, 0, Player::White)),
+            RefCell::new(Point::new(
+                DenormalizedPosition::try_from(BOARD_SIZE + 1).unwrap(),
+                0,
+                Player::Black,
+            )),
+            RefCell::new(Point::new(
+                DenormalizedPosition::try_from(0).unwrap(),
+                0,
+                Player::White,
+            )),
         ];
 
         let rail = [
-            RefCell::new(Point::new(0, 0, Player::Black)),
-            RefCell::new(Point::new(BOARD_SIZE + 1, 0, Player::White)),
+            RefCell::new(Point::new(
+                DenormalizedPosition::try_from(0).unwrap(),
+                0,
+                Player::Black,
+            )),
+            RefCell::new(Point::new(
+                DenormalizedPosition::try_from(BOARD_SIZE + 1).unwrap(),
+                0,
+                Player::White,
+            )),
         ];
 
         // let totals = [
@@ -115,32 +140,24 @@ impl Board {
 impl std::fmt::Display for Board {
     #[allow(unstable_name_collisions)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        fn fmt_point(point: &RefCell<Point>) -> String {
-            let str = format!("{:#02}", point.borrow().count);
-            let str = match point.borrow().player {
+        let index_format = |i| format!("{i:02}");
+        let point_format = |point: &RefCell<Point>| {
+            let point = point.borrow();
+            let count = point.count;
+
+            let str = if count == 0 {
+                format!("{:2}", "░░")
+            } else {
+                format!("{:02}", count)
+            };
+
+            let str = match point.player {
                 Player::Black => str.on_black().white().bold(),
-                Player::White => str.on_white().truecolor(0, 0, 0).bold(),
+                Player::White => str.on_white().black().bold(),
                 Player::None => str.normal().dimmed(),
             };
             format!("{str}")
-        }
-
-        macro_rules! fmt_line {
-            ($range:expr, $fn:expr, $rev:expr) => {{
-                let mut vec = $range.map($fn).collect::<Vec<_>>();
-                vec.insert(vec.len() / 2, '|'.to_string());
-                if $rev {
-                    vec.reverse();
-                }
-                vec.into_iter()
-                    .intersperse(" ".to_string())
-                    .collect::<String>()
-            }};
-        }
-
-        fn fmt_indices(range: RangeInclusive<usize>, rev: bool) -> colored::ColoredString {
-            fmt_line!(range, |i| format!("{i:#02}"), rev).bold()
-        }
+        };
 
         let perspective = if f.alternate() {
             Player::White
@@ -148,30 +165,83 @@ impl std::fmt::Display for Board {
             Player::Black
         };
 
-        let fmt_points = |range: RangeInclusive<usize>, rev: bool| -> String {
-            fmt_line!(
-                range,
-                |i| fmt_point(&self.points[Notation::position_to_index(i, perspective).unwrap()]),
-                rev
+        macro_rules! bkgm_format {
+            ($range:expr $(, $rev:ident)?) => {
+                (bkgm_format!(index_format, $range $(, $rev)?), bkgm_format!(|i| {
+                    point_format(&self.points[
+                        *NormalizedPosition::new(i, perspective)
+                            .unwrap()
+                            .to_index()
+                            .unwrap()
+                    ])
+                }, $range $(, $rev)?))
+            };
+            ($fmt:expr, $range:expr $(, $rev:ident)?) => {
+                ($range).map($fmt)$(.$rev())?.intersperse(" ".to_string()).collect::<String>()
+            };
+        }
+
+        if f.alternate() {
+            let player_home = bkgm_format!(1..=6);
+            let player_outer = bkgm_format!(7..=12);
+            let opponent_outer = bkgm_format!(13..=18, rev);
+            let opponent_home = bkgm_format!(19..=24, rev);
+
+            write!(
+                f,
+                "┏━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━┓\n\
+                 ┃    ┃ {               } ┃    ┃ {               } ┃    ┃\n\
+                 ┃    ┣━━━━━━━━━━━━━━━━━━━┫    ┣━━━━━━━━━━━━━━━━━━━┫    ┃\n\
+                 ┃ {} ┃ {               } ┃ {} ┃ {               } ┃    ┃\n\
+                 ┃    ┣━━━━━━━━━━━━━━━━━━━┫    ┣━━━━━━━━━━━━━━━━━━━┫    ┃\n\
+                 ┃ {} ┃ {               } ┃ {} ┃ {               } ┃    ┃\n\
+                 ┃    ┣━━━━━━━━━━━━━━━━━━━┫    ┣━━━━━━━━━━━━━━━━━━━┫    ┃\n\
+                 ┃    ┃ {               } ┃    ┃ {               } ┃    ┃\n\
+                 ┗━━━━┻━━━━━━━━━━━━━━━━━━━┻━━━━┻━━━━━━━━━━━━━━━━━━━┻━━━━┛",
+                opponent_home.0,
+                opponent_outer.0,
+                point_format(self.rail(!perspective)),
+                opponent_home.1,
+                point_format(self.bar(perspective)),
+                opponent_outer.1,
+                point_format(self.rail(perspective)),
+                player_home.1,
+                point_format(self.bar(!perspective)),
+                player_outer.1,
+                player_home.0,
+                player_outer.0,
             )
-        };
+        } else {
+            let player_home = bkgm_format!(1..=6, rev);
+            let player_outer = bkgm_format!(7..=12, rev);
+            let opponent_outer = bkgm_format!(13..=18);
+            let opponent_home = bkgm_format!(19..=24);
 
-        let sep = "\n-- -- -- -- -- -- + -- -- -- -- -- --\n";
-
-        write!(
-            f,
-            "{}{sep}{} Bar: {} {}{sep}{} Rail: {} {}{sep}{}",
-            fmt_indices(13..=24, !f.alternate()),
-            fmt_points(13..=24, !f.alternate()),
-            fmt_point(self.bar(perspective)),
-            fmt_point(self.bar(!perspective)),
-            fmt_points(1..=12, f.alternate()),
-            fmt_point(self.rail(perspective)),
-            fmt_point(self.rail(!perspective)),
-            fmt_indices(1..=12, f.alternate()),
-        )?;
-
-        Ok(())
+            write!(
+                f,
+                "┏━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━┓\n\
+                 ┃    ┃ {               } ┃    ┃ {               } ┃    ┃\n\
+                 ┃    ┣━━━━━━━━━━━━━━━━━━━┫    ┣━━━━━━━━━━━━━━━━━━━┫    ┃\n\
+                 ┃    ┃ {               } ┃ {} ┃ {               } ┃ {} ┃\n\
+                 ┃    ┣━━━━━━━━━━━━━━━━━━━┫    ┣━━━━━━━━━━━━━━━━━━━┫    ┃\n\
+                 ┃    ┃ {               } ┃ {} ┃ {               } ┃ {} ┃\n\
+                 ┃    ┣━━━━━━━━━━━━━━━━━━━┫    ┣━━━━━━━━━━━━━━━━━━━┫    ┃\n\
+                 ┃    ┃ {               } ┃    ┃ {               } ┃    ┃\n\
+                 ┗━━━━┻━━━━━━━━━━━━━━━━━━━┻━━━━┻━━━━━━━━━━━━━━━━━━━┻━━━━┛",
+                opponent_outer.0,
+                opponent_home.0,
+                opponent_outer.1,
+                point_format(self.bar(perspective)),
+                opponent_home.1,
+                point_format(self.rail(!perspective)),
+                player_outer.1,
+                point_format(self.bar(!perspective)),
+                player_home.1,
+                point_format(self.rail(perspective)),
+                player_outer.0,
+                player_home.0,
+            )
+        }
     }
 }
 
@@ -199,36 +269,32 @@ impl PartialEq for Board {
     }
 }
 
-// Incorporate clearer normalized and denormalized types:
-// type DenormalizedPosition = usize;
-// type NormalizedPosition = usize;
-
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) enum Position {
+pub(crate) enum Space {
     Bar(Player),
     Rail(Player),
-    Point(usize),
+    Point(IndexPosition),
 }
 
-impl Position {
+impl Space {
     pub fn point<'a>(&self, board: &'a Board) -> &'a RefCell<Point> {
         match *self {
-            Position::Bar(player) => board.bar(player),
-            Position::Rail(player) => board.rail(player),
-            Position::Point(index) => board.point(index),
+            Space::Bar(player) => board.bar(player),
+            Space::Rail(player) => board.rail(player),
+            Space::Point(index) => board.point(*index),
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Point {
-    pub position: usize,
+    pub position: DenormalizedPosition,
     pub count: u8,
     pub player: Player,
 }
 
 impl Point {
-    pub fn new(position: usize, count: u8, player: Player) -> Self {
+    fn new(position: DenormalizedPosition, count: u8, player: Player) -> Self {
         Self {
             position,
             count,
@@ -245,7 +311,7 @@ impl Point {
     // }
 
     pub fn distance(&self, to: &Point) -> usize {
-        self.position.abs_diff(to.position)
+        self.position.abs_diff(*to.position)
     }
 
     pub fn set(&mut self, count: u8, player: Player) {
@@ -263,9 +329,7 @@ mod tests {
         let player = Player::Black;
         let board = Board::empty();
         board.point(5).borrow_mut().set(1, player);
-
         println!("{board}");
-
         assert!(board.all_in_home(player));
     }
 
@@ -274,9 +338,7 @@ mod tests {
         let player = Player::White;
         let board = Board::empty();
         board.point(18).borrow_mut().set(1, player);
-
         println!("{board}");
-
         assert!(board.all_in_home(player));
     }
 
@@ -285,9 +347,7 @@ mod tests {
         let player = Player::Black;
         let board = Board::empty();
         board.point(10).borrow_mut().set(1, player);
-
         println!("{board}");
-
         assert!(!board.all_in_home(player));
     }
 
@@ -296,9 +356,7 @@ mod tests {
         let player = Player::White;
         let board = Board::empty();
         board.point(13).borrow_mut().set(1, player);
-
         println!("{board}");
-
         assert!(!board.all_in_home(player));
     }
 }

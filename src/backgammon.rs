@@ -3,13 +3,19 @@ mod dice;
 mod game;
 mod notation;
 mod player;
+mod position;
 
 pub use game::Game;
 
+use player::Player;
+
 #[derive(Debug, PartialEq)]
 pub(crate) enum Error {
-    InvalidNotationPosition(usize),
+    InvalidNormalizedPosition(usize, Player),
+    InvalidDenormalizedPosition(usize),
     InvalidIndexPosition(usize),
+    // InvalidNotationPosition(usize),
+    // InvalidIndexPosition(usize),
     InvalidNotation(String),
     InvalidPlayLength(u8),
     IncompleteTurn,
@@ -27,8 +33,20 @@ pub(crate) enum Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::InvalidNotationPosition(pos) => write!(f, "position '{pos}' is not valid"),
-            Error::InvalidIndexPosition(index) => write!(f, "index '{index}' is not valid"),
+            Error::InvalidNormalizedPosition(pos, player) => {
+                write!(
+                    f,
+                    "cannot create `NormalizedPosition` of `{pos}` for `{player}`"
+                )
+            }
+            Error::InvalidDenormalizedPosition(pos) => {
+                write!(f, "cannot create `DenormalizedPosition` from `{pos}`")
+            }
+            Error::InvalidIndexPosition(pos) => {
+                write!(f, "cannot create `IndexPosition` from `{pos}`")
+            }
+            // Error::InvalidNotationPosition(pos) => write!(f, "position '{pos}' is not valid"),
+            // Error::InvalidIndexPosition(index) => write!(f, "index '{index}' is not valid"),
             Error::InvalidNotation(notation) => write!(f, "notation '{notation}' is not valid"),
             Error::InvalidPlayLength(len) => write!(f, "play of length '{len}' is not valid"),
             Error::IncompleteTurn => write!(f, "did not use all possible plays"),
