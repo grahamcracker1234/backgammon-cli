@@ -1,6 +1,7 @@
 use colored::Colorize;
 use itertools::Itertools;
 use std::fmt::Debug;
+use std::iter;
 
 use crate::backgammon::{
     location::{DenormalizedLocation, IndexLocation, NormalizedLocation},
@@ -153,13 +154,17 @@ impl Board {
     }
 
     pub fn any_behind(&self, index: usize, player: Player) -> bool {
+        let any = |p: &Position| p.player == player && p.count > 0;
         match player {
-            Player::Black => &self.points[index + 1..],
-            Player::White => &self.points[..index],
+            Player::Black => self.points[index + 1..]
+                .iter()
+                .chain(iter::once(self.bar(player)))
+                .any(any),
+            Player::White => iter::once(self.bar(player))
+                .chain(self.points[..index].iter())
+                .any(any),
             Player::None => panic!("no pieces behind `None`"),
         }
-        .iter()
-        .any(|p| p.player == player && p.count > 0)
     }
 
     pub fn all_in_home(&self, player: Player) -> bool {
@@ -366,6 +371,17 @@ mod tests {
         let player = Player::White;
         let mut board = Board::empty();
         board.point_mut(13).set(1, player);
+        println!("{board}");
+        assert!(!board.all_in_home(player));
+    }
+
+    #[test]
+    fn all_in_home_5() {
+        let player = Player::Black;
+        let mut board = Board::empty();
+        board.point_mut(2).set(1, player);
+        board.point_mut(3).set(1, player);
+        board.bar_mut(player).set(1, player);
         println!("{board}");
         assert!(!board.all_in_home(player));
     }

@@ -44,13 +44,6 @@ impl Game {
 
             println!("\n{self}\n");
 
-            // println!(
-            //     "{:?}",
-            //     Turn::get_available_plays(&self)
-            //         .map(|m| m.to_string())
-            //         .collect::<Vec<_>>()
-            // );
-
             let notation = match self.get_notation() {
                 Ok(notation) => notation,
                 Err(error) => {

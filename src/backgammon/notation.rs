@@ -88,24 +88,6 @@ pub(crate) enum PositionRef {
     Point(IndexLocation),
 }
 
-// impl Space {
-//     pub fn position<'a>(&self, board: &'a Board) -> &'a Position {
-//         match *self {
-//             Space::Bar(player) => board.bar(player),
-//             Space::Rail(player) => board.rail(player),
-//             Space::Point(index) => board.point(*index),
-//         }
-//     }
-
-//     pub fn point_mut<'a>(&self, board: &'a mut Board) -> &'a mut Position {
-//         match *self {
-//             Space::Bar(player) => board.bar_mut(player),
-//             Space::Rail(player) => board.rail_mut(player),
-//             Space::Point(index) => board.point_mut(*index),
-//         }
-//     }
-// }
-
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Play {
     pub player: Player,
