@@ -81,6 +81,25 @@ impl Notation {
 #[derive(Debug, PartialEq)]
 pub(crate) struct Turn(pub Vec<Play>);
 
+#[allow(unused)]
+macro_rules! turn {
+    ($player:expr $(, ($from:tt, $to:tt))*) => {
+        Turn(vec![
+            $(Play::new(
+                $player,
+                turn!($player, $from),
+                turn!($player, $to),
+            )),*
+        ])
+    };
+    ($player:expr, bar) => { PositionRef::Bar($player) };
+    ($player:expr, off) => { PositionRef::Rail($player) };
+    ($player:expr, $index:literal) => { PositionRef::Point($index.try_into().unwrap()) };
+}
+
+#[allow(unused)]
+pub(crate) use turn;
+
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum PositionRef {
     Bar(Player),
@@ -134,21 +153,6 @@ impl std::fmt::Display for Play {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    macro_rules! turn {
-        ($player:expr, $(($from:tt, $to:tt)),*) => {
-            Turn(vec![
-                $(Play::new(
-                    $player,
-                    turn!($player, $from),
-                    turn!($player, $to),
-                )),*
-            ])
-        };
-        ($player:expr, bar) => { PositionRef::Bar($player) };
-        ($player:expr, off) => { PositionRef::Rail($player) };
-        ($player:expr, $index:literal) => { PositionRef::Point($index.try_into().unwrap()) };
-    }
 
     use Player::{Black, White};
 

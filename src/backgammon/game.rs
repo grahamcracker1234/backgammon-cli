@@ -13,9 +13,9 @@ use std::{io, io::Write};
 
 #[derive(Clone)]
 pub struct Game {
-    pub(super) current_player: Player,
-    pub(super) current_roll: Dice,
-    pub(super) board: Board,
+    pub(crate) current_player: Player,
+    pub(crate) current_roll: Dice,
+    pub(crate) board: Board,
 }
 
 impl Game {
@@ -60,13 +60,14 @@ impl Game {
                 }
             };
 
-            if let Err(error) = self.take_turn(turn) {
+            if let Err(error) = self.check_turn(&turn) {
                 println!("{}", error.to_string().red().bold());
                 self.board = saved_board;
                 self.current_roll = saved_roll;
                 continue;
             }
 
+            self.take_turn(&turn);
             self.change_turn();
         }
     }
@@ -83,18 +84,27 @@ impl Game {
         Ok(Notation::new(input, self.current_player))
     }
 
-    pub(crate) fn take_turn(&mut self, turn: Turn) -> Result<(), Error> {
+    pub(crate) fn check_turn(&self, turn: &Turn) -> Result<(), Error> {
+        let mut game = self.clone();
+
         let Turn(plays) = turn;
         for play in plays {
-            self.check_play(&play)?;
-            self.make_play(&play);
+            game.check_play(play)?;
+            game.make_play(play);
         }
 
-        if self.current_roll.any_available() && self.get_available_plays().count() > 0 {
+        if game.current_roll.any_available() && game.get_available_plays().count() > 0 {
             return Err(Error::IncompleteTurn);
         }
 
         Ok(())
+    }
+
+    pub(crate) fn take_turn(&mut self, turn: &Turn) {
+        let Turn(plays) = turn;
+        for play in plays {
+            self.make_play(play);
+        }
     }
 
     /// Checks whether a given play can be made, returning a result containing the error if
@@ -178,16 +188,18 @@ impl Game {
             self.current_roll.remove(len);
         } else {
             // Ensure a piece can be borne off with a greater roll than necessary
-            //only if there are no pieces behind it.
-            let PositionRef::Point(index) = play.from else {
-                panic!("osdjfo");
-            };
+            // only if there are no pieces behind it.
 
-            if matches!(play.to, PositionRef::Rail(_))
-                && !self.board.any_behind(*index, play.player)
-            {
-                self.current_roll.remove(self.current_roll.max());
-            }
+            assert!(matches!(play.to, PositionRef::Rail(_)));
+
+            let index = from
+                .location
+                .to_index()
+                .expect("location should be indexable");
+
+            assert!(!self.board.any_behind(*index, play.player));
+
+            self.current_roll.remove(self.current_roll.max());
         }
 
         // If there is a blot where the player is moving to, then send it to
@@ -245,13 +257,6 @@ impl Game {
                     let from = board_position.clone();
 
                     let point = self.board.get(&board_position);
-                    // if self.current_player != point.player {
-                    //     return Err(Error::PlayMadeOutOfTurn);
-                    // }
-                    // let index = point.position.to_index()?;
-                    // let to = Space::Point(index);
-                    // let play = Play::new(point.player, from, to);
-
                     let index = IndexLocation::try_from(match point.player {
                         Player::Black => point
                             .location
@@ -293,6 +298,7 @@ impl Default for Game {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::backgammon::notation::turn;
 
     #[test]
     fn black_1() {
@@ -301,23 +307,12 @@ mod test {
         board.point_mut(10).set(5, player);
 
         let mut game = Game::from(player, Dice::from([3, 5]), board);
-
-        let turn = Turn(vec![
-            Play::new(
-                player,
-                PositionRef::Point(10.try_into().unwrap()),
-                PositionRef::Point(7.try_into().unwrap()),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(10.try_into().unwrap()),
-                PositionRef::Point(5.try_into().unwrap()),
-            ),
-        ]);
+        let turn = turn!(player, (10, 7), (10, 5));
 
         println!("{game}");
 
-        assert!(matches!(game.take_turn(turn), Ok(())));
+        assert_eq!(game.check_turn(&turn), Ok(()));
+        game.take_turn(&turn);
 
         println!("{game}");
 
@@ -340,23 +335,12 @@ mod test {
         board.point_mut(4).set(3, player);
 
         let mut game = Game::from(player, Dice::from([2, 6]), board);
-
-        let turn = Turn(vec![
-            Play::new(
-                player,
-                PositionRef::Point(10.try_into().unwrap()),
-                PositionRef::Point(4.try_into().unwrap()),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(20.try_into().unwrap()),
-                PositionRef::Point(18.try_into().unwrap()),
-            ),
-        ]);
+        let turn = turn!(player, (10, 4), (20, 18));
 
         println!("{game}");
 
-        assert!(matches!(game.take_turn(turn), Ok(())));
+        assert_eq!(game.check_turn(&turn), Ok(()));
+        game.take_turn(&turn);
 
         println!("{game}");
 
@@ -378,23 +362,12 @@ mod test {
         board.point_mut(15).set(7, player);
 
         let mut game = Game::from(player, Dice::from([1, 3]), board);
-
-        let turn = Turn(vec![
-            Play::new(
-                player,
-                PositionRef::Point(15.try_into().unwrap()),
-                PositionRef::Point(12.try_into().unwrap()),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(12.try_into().unwrap()),
-                PositionRef::Point(11.try_into().unwrap()),
-            ),
-        ]);
+        let turn = turn!(player, (15, 12), (12, 11));
 
         println!("{game}");
 
-        assert!(matches!(game.take_turn(turn), Ok(())));
+        assert_eq!(game.check_turn(&turn), Ok(()));
+        game.take_turn(&turn);
 
         println!("{game}");
 
@@ -415,23 +388,12 @@ mod test {
         board.point_mut(7).set(2, player);
 
         let mut game = Game::from(player, Dice::from([4, 6]), board);
-
-        let turn = Turn(vec![
-            Play::new(
-                player,
-                PositionRef::Bar(player),
-                PositionRef::Point(18.try_into().unwrap()),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(7.try_into().unwrap()),
-                PositionRef::Point(3.try_into().unwrap()),
-            ),
-        ]);
+        let turn = turn!(player, (bar, 18), (7, 3));
 
         println!("{game}");
 
-        assert!(matches!(game.take_turn(turn), Ok(())));
+        assert_eq!(game.check_turn(&turn), Ok(()));
+        game.take_turn(&turn);
 
         println!("{game}");
 
@@ -454,23 +416,12 @@ mod test {
         board.point_mut(4).set(8, player);
 
         let mut game = Game::from(player, Dice::from([1, 2]), board);
-
-        let turn = Turn(vec![
-            Play::new(
-                player,
-                PositionRef::Bar(player),
-                PositionRef::Point(23.try_into().unwrap()),
-            ),
-            Play::new(
-                player,
-                PositionRef::Bar(player),
-                PositionRef::Point(22.try_into().unwrap()),
-            ),
-        ]);
+        let turn = turn!(player, (bar, 23), (bar, 22));
 
         println!("{game}");
 
-        assert!(matches!(game.take_turn(turn), Ok(())));
+        assert_eq!(game.check_turn(&turn), Ok(()));
+        game.take_turn(&turn);
 
         println!("{game}");
 
@@ -492,33 +443,12 @@ mod test {
         board.point_mut(5).set(8, player);
 
         let mut game = Game::from(player, Dice::from([3, 3]), board);
-
-        let turn = Turn(vec![
-            Play::new(
-                player,
-                PositionRef::Point(17.try_into().unwrap()),
-                PositionRef::Point(14.try_into().unwrap()),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(17.try_into().unwrap()),
-                PositionRef::Point(14.try_into().unwrap()),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(14.try_into().unwrap()),
-                PositionRef::Point(11.try_into().unwrap()),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(5.try_into().unwrap()),
-                PositionRef::Point(2.try_into().unwrap()),
-            ),
-        ]);
+        let turn = turn!(player, (17, 14), (17, 14), (14, 11), (5, 2));
 
         println!("{game}");
 
-        assert!(matches!(game.take_turn(turn), Ok(())));
+        assert_eq!(game.check_turn(&turn), Ok(()));
+        game.take_turn(&turn);
 
         println!("{game}");
 
@@ -540,23 +470,12 @@ mod test {
         board.point_mut(11).set(5, player);
 
         let mut game = Game::from(player, Dice::from([2, 3]), board);
-
-        let turn = Turn(vec![
-            Play::new(
-                player,
-                PositionRef::Point(11.try_into().unwrap()),
-                PositionRef::Point(13.try_into().unwrap()),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(11.try_into().unwrap()),
-                PositionRef::Point(14.try_into().unwrap()),
-            ),
-        ]);
+        let turn = turn!(player, (11, 13), (11, 14));
 
         println!("{game}");
 
-        assert!(matches!(game.take_turn(turn), Ok(())));
+        assert_eq!(game.check_turn(&turn), Ok(()));
+        game.take_turn(&turn);
 
         println!("{game}");
 
@@ -579,23 +498,12 @@ mod test {
         board.point_mut(5).set(3, player);
 
         let mut game = Game::from(player, Dice::from([3, 5]), board);
-
-        let turn = Turn(vec![
-            Play::new(
-                player,
-                PositionRef::Point(20.try_into().unwrap()),
-                PositionRef::Point(23.try_into().unwrap()),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(0.try_into().unwrap()),
-                PositionRef::Point(5.try_into().unwrap()),
-            ),
-        ]);
+        let turn = turn!(player, (20, 23), (0, 5));
 
         println!("{game}");
 
-        assert!(matches!(game.take_turn(turn), Ok(())));
+        assert_eq!(game.check_turn(&turn), Ok(()));
+        game.take_turn(&turn);
 
         println!("{game}");
 
@@ -617,23 +525,12 @@ mod test {
         board.point_mut(14).set(4, player);
 
         let mut game = Game::from(player, Dice::from([1, 3]), board);
-
-        let turn = Turn(vec![
-            Play::new(
-                player,
-                PositionRef::Point(14.try_into().unwrap()),
-                PositionRef::Point(15.try_into().unwrap()),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(15.try_into().unwrap()),
-                PositionRef::Point(18.try_into().unwrap()),
-            ),
-        ]);
+        let turn = turn!(player, (14, 15), (15, 18));
 
         println!("{game}");
 
-        assert!(matches!(game.take_turn(turn), Ok(())));
+        assert_eq!(game.check_turn(&turn), Ok(()));
+        game.take_turn(&turn);
 
         println!("{game}");
 
@@ -654,23 +551,12 @@ mod test {
         board.point_mut(17).set(2, player);
 
         let mut game = Game::from(player, Dice::from([6, 4]), board);
-
-        let turn = Turn(vec![
-            Play::new(
-                player,
-                PositionRef::Bar(player),
-                PositionRef::Point(5.try_into().unwrap()),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(17.try_into().unwrap()),
-                PositionRef::Point(21.try_into().unwrap()),
-            ),
-        ]);
+        let turn = turn!(player, (bar, 5), (17, 21));
 
         println!("{game}");
 
-        assert!(matches!(game.take_turn(turn), Ok(())));
+        assert_eq!(game.check_turn(&turn), Ok(()));
+        game.take_turn(&turn);
 
         println!("{game}");
 
@@ -693,23 +579,12 @@ mod test {
         board.point_mut(3).set(8, player);
 
         let mut game = Game::from(player, Dice::from([4, 1]), board);
-
-        let turn = Turn(vec![
-            Play::new(
-                player,
-                PositionRef::Bar(player),
-                PositionRef::Point(3.try_into().unwrap()),
-            ),
-            Play::new(
-                player,
-                PositionRef::Bar(player),
-                PositionRef::Point(0.try_into().unwrap()),
-            ),
-        ]);
+        let turn = turn!(player, (bar, 3), (bar, 0));
 
         println!("{game}");
 
-        assert!(matches!(game.take_turn(turn), Ok(())));
+        assert_eq!(game.check_turn(&turn), Ok(()));
+        game.take_turn(&turn);
 
         println!("{game}");
 
@@ -732,33 +607,12 @@ mod test {
         board.point_mut(17).set(3, player);
 
         let mut game = Game::from(player, Dice::from([4, 4]), board);
-
-        let turn = Turn(vec![
-            Play::new(
-                player,
-                PositionRef::Point(7.try_into().unwrap()),
-                PositionRef::Point(11.try_into().unwrap()),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(7.try_into().unwrap()),
-                PositionRef::Point(11.try_into().unwrap()),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(11.try_into().unwrap()),
-                PositionRef::Point(15.try_into().unwrap()),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(17.try_into().unwrap()),
-                PositionRef::Point(21.try_into().unwrap()),
-            ),
-        ]);
+        let turn = turn!(player, (7, 11), (7, 11), (11, 15), (17, 21));
 
         println!("{game}");
 
-        assert!(matches!(game.take_turn(turn), Ok(())));
+        assert_eq!(game.check_turn(&turn), Ok(()));
+        game.take_turn(&turn);
 
         println!("{game}");
 
@@ -781,23 +635,12 @@ mod test {
         board.point_mut(4).set(3, player);
 
         let mut game = Game::from(player, Dice::from([5, 4]), board);
-
-        let turn = Turn(vec![
-            Play::new(
-                player,
-                PositionRef::Point(4.try_into().unwrap()),
-                PositionRef::Rail(player),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(4.try_into().unwrap()),
-                PositionRef::Point(0.try_into().unwrap()),
-            ),
-        ]);
+        let turn = turn!(player, (4, off), (4, 0));
 
         println!("{game}");
 
-        assert_eq!(game.take_turn(turn), Ok(()));
+        assert_eq!(game.check_turn(&turn), Ok(()));
+        game.take_turn(&turn);
 
         println!("{game}");
 
@@ -819,23 +662,12 @@ mod test {
         board.point_mut(22).set(3, player);
 
         let mut game = Game::from(player, Dice::from([2, 3]), board);
-
-        let turn = Turn(vec![
-            Play::new(
-                player,
-                PositionRef::Point(21.try_into().unwrap()),
-                PositionRef::Rail(player),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(22.try_into().unwrap()),
-                PositionRef::Rail(player),
-            ),
-        ]);
+        let turn = turn!(player, (21, off), (22, off));
 
         println!("{game}");
 
-        assert_eq!(game.take_turn(turn), Ok(()));
+        assert_eq!(game.check_turn(&turn), Ok(()));
+        game.take_turn(&turn);
 
         println!("{game}");
 
@@ -856,23 +688,12 @@ mod test {
         board.point_mut(18).set(3, player);
 
         let mut game = Game::from(player, Dice::from([6, 5]), board);
-
-        let turn = Turn(vec![
-            Play::new(
-                player,
-                PositionRef::Point(18.try_into().unwrap()),
-                PositionRef::Rail(player),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(18.try_into().unwrap()),
-                PositionRef::Rail(player),
-            ),
-        ]);
+        let turn = turn!(player, (18, off), (18, off));
 
         println!("{game}");
 
-        assert_eq!(game.take_turn(turn), Ok(()));
+        assert_eq!(game.check_turn(&turn), Ok(()));
+        game.take_turn(&turn);
 
         println!("{game}");
 
@@ -893,13 +714,12 @@ mod test {
         board.point_mut(11).set(2, Player::White);
         board.point_mut(13).set(2, player);
 
-        let mut game = Game::from(player, Dice::from([2, 3]), board);
-
-        let turn = Turn(vec![]);
+        let game = Game::from(player, Dice::from([2, 3]), board);
+        let turn = turn!(player);
 
         println!("{game}");
 
-        assert_eq!(game.take_turn(turn), Ok(()));
+        assert_eq!(game.check_turn(&turn), Ok(()));
     }
 
     #[test]
@@ -911,13 +731,12 @@ mod test {
         board.point_mut(20).set(2, Player::White);
         board.point_mut(13).set(1, player);
 
-        let mut game = Game::from(player, Dice::from([1, 4]), board);
-
-        let turn = Turn(vec![]);
+        let game = Game::from(player, Dice::from([1, 4]), board);
+        let turn = turn!(player);
 
         println!("{game}");
 
-        assert_eq!(game.take_turn(turn), Ok(()));
+        assert_eq!(game.check_turn(&turn), Ok(()));
     }
 
     #[test]
@@ -926,24 +745,12 @@ mod test {
         let mut board = Board::empty();
         board.point_mut(10).set(2, player);
 
-        let mut game = Game::from(player, Dice::from([1, 2]), board);
-
-        let turn = Turn(vec![
-            Play::new(
-                player,
-                PositionRef::Point(10.try_into().unwrap()),
-                PositionRef::Point(9.try_into().unwrap()),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(10.try_into().unwrap()),
-                PositionRef::Point(7.try_into().unwrap()),
-            ),
-        ]);
+        let game = Game::from(player, Dice::from([1, 2]), board);
+        let turn = turn!(player, (10, 9), (10, 7));
 
         println!("{game}");
 
-        assert_eq!(game.take_turn(turn), Err(Error::InvalidPlayLength(3)));
+        assert_eq!(game.check_turn(&turn), Err(Error::InvalidPlayLength(3)));
     }
 
     #[test]
@@ -954,24 +761,12 @@ mod test {
         board.point_mut(4).set(2, player);
         board.point_mut(3).set(1, player);
 
-        let mut game = Game::from(player, Dice::from([3, 6]), board);
-
-        let turn = Turn(vec![
-            Play::new(
-                player,
-                PositionRef::Point(4.try_into().unwrap()),
-                PositionRef::Rail(player),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(3.try_into().unwrap()),
-                PositionRef::Rail(player),
-            ),
-        ]);
+        let game = Game::from(player, Dice::from([3, 6]), board);
+        let turn = turn!(player, (4, off), (3, off));
 
         println!("{game}");
 
-        assert_eq!(game.take_turn(turn), Err(Error::InvalidPlayLength(5)));
+        assert_eq!(game.check_turn(&turn), Err(Error::InvalidPlayLength(5)));
     }
 
     #[test]
@@ -980,17 +775,12 @@ mod test {
         let mut board = Board::empty();
         board.point_mut(10).set(2, player);
 
-        let mut game = Game::from(player, Dice::from([1, 2]), board);
-
-        let turn = Turn(vec![Play::new(
-            player,
-            PositionRef::Point(10.try_into().unwrap()),
-            PositionRef::Point(9.try_into().unwrap()),
-        )]);
+        let game = Game::from(player, Dice::from([1, 2]), board);
+        let turn = turn!(player, (10, 9));
 
         println!("{game}");
 
-        assert_eq!(game.take_turn(turn), Err(Error::IncompleteTurn));
+        assert_eq!(game.check_turn(&turn), Err(Error::IncompleteTurn));
     }
 
     #[test]
@@ -999,24 +789,12 @@ mod test {
         let mut board = Board::empty();
         board.point_mut(10).set(2, player);
 
-        let mut game = Game::from(Player::White, Dice::from([1, 2]), board);
-
-        let turn = Turn(vec![
-            Play::new(
-                player,
-                PositionRef::Point(10.try_into().unwrap()),
-                PositionRef::Point(9.try_into().unwrap()),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(10.try_into().unwrap()),
-                PositionRef::Point(8.try_into().unwrap()),
-            ),
-        ]);
+        let game = Game::from(Player::White, Dice::from([1, 2]), board);
+        let turn = turn!(player, (10, 9), (10, 8));
 
         println!("{game}");
 
-        assert_eq!(game.take_turn(turn), Err(Error::PlayMadeOutOfTurn));
+        assert_eq!(game.check_turn(&turn), Err(Error::PlayMadeOutOfTurn));
     }
 
     #[test]
@@ -1026,24 +804,12 @@ mod test {
         board.bar_mut(player).set(1, player);
         board.point_mut(10).set(2, player);
 
-        let mut game = Game::from(player, Dice::from([1, 2]), board);
-
-        let turn = Turn(vec![
-            Play::new(
-                player,
-                PositionRef::Point(10.try_into().unwrap()),
-                PositionRef::Point(9.try_into().unwrap()),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(10.try_into().unwrap()),
-                PositionRef::Point(8.try_into().unwrap()),
-            ),
-        ]);
+        let game = Game::from(player, Dice::from([1, 2]), board);
+        let turn = turn!(player, (10, 9), (10, 8));
 
         println!("{game}");
 
-        assert_eq!(game.take_turn(turn), Err(Error::PlayMadeWithBarFilled));
+        assert_eq!(game.check_turn(&turn), Err(Error::PlayMadeWithBarFilled));
     }
 
     #[test]
@@ -1052,24 +818,12 @@ mod test {
         let mut board = Board::empty();
         board.point_mut(23).set(2, player);
 
-        let mut game = Game::from(player, Dice::from([1, 2]), board);
-
-        let turn = Turn(vec![
-            Play::new(
-                player,
-                PositionRef::Point(23.try_into().unwrap()),
-                PositionRef::Bar(player),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(23.try_into().unwrap()),
-                PositionRef::Point(21.try_into().unwrap()),
-            ),
-        ]);
+        let game = Game::from(player, Dice::from([1, 2]), board);
+        let turn = turn!(player, (23, bar), (23, 21));
 
         println!("{game}");
 
-        assert_eq!(game.take_turn(turn), Err(Error::PlayMadeToBar));
+        assert_eq!(game.check_turn(&turn), Err(Error::PlayMadeToBar));
     }
 
     #[test]
@@ -1079,24 +833,12 @@ mod test {
         board.rail_mut(player).set(1, player);
         board.point_mut(23).set(2, player);
 
-        let mut game = Game::from(player, Dice::from([1, 2]), board);
-
-        let turn = Turn(vec![
-            Play::new(
-                player,
-                PositionRef::Rail(player),
-                PositionRef::Point(0.try_into().unwrap()),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(23.try_into().unwrap()),
-                PositionRef::Point(21.try_into().unwrap()),
-            ),
-        ]);
+        let game = Game::from(player, Dice::from([1, 2]), board);
+        let turn = turn!(player, (off, 0), (23, 21));
 
         println!("{game}");
 
-        assert_eq!(game.take_turn(turn), Err(Error::PlayMadeFromRail));
+        assert_eq!(game.check_turn(&turn), Err(Error::PlayMadeFromRail));
     }
 
     #[test]
@@ -1104,17 +846,12 @@ mod test {
         let player = Player::Black;
         let board = Board::empty();
 
-        let mut game = Game::from(player, Dice::from([1, 2]), board);
-
-        let turn = Turn(vec![Play::new(
-            player,
-            PositionRef::Point(23.try_into().unwrap()),
-            PositionRef::Point(21.try_into().unwrap()),
-        )]);
+        let game = Game::from(player, Dice::from([1, 2]), board);
+        let turn = turn!(player, (23, 21));
 
         println!("{game}");
 
-        assert_eq!(game.take_turn(turn), Err(Error::PlayMadeFromEmptyPoint));
+        assert_eq!(game.check_turn(&turn), Err(Error::PlayMadeFromEmptyPoint));
     }
 
     #[test]
@@ -1123,24 +860,15 @@ mod test {
         let mut board = Board::empty();
         board.point_mut(23).set(2, Player::White);
 
-        let mut game = Game::from(player, Dice::from([1, 2]), board);
-
-        let turn = Turn(vec![
-            Play::new(
-                player,
-                PositionRef::Point(23.try_into().unwrap()),
-                PositionRef::Point(22.try_into().unwrap()),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(23.try_into().unwrap()),
-                PositionRef::Point(21.try_into().unwrap()),
-            ),
-        ]);
+        let game = Game::from(player, Dice::from([1, 2]), board);
+        let turn = turn!(player, (23, 22), (23, 21));
 
         println!("{game}");
 
-        assert_eq!(game.take_turn(turn), Err(Error::PlayMadeWithOpposingPiece));
+        assert_eq!(
+            game.check_turn(&turn),
+            Err(Error::PlayMadeWithOpposingPiece)
+        );
     }
 
     #[test]
@@ -1149,24 +877,12 @@ mod test {
         let mut board = Board::empty();
         board.point_mut(10).set(2, player);
 
-        let mut game = Game::from(player, Dice::from([1, 2]), board);
-
-        let turn = Turn(vec![
-            Play::new(
-                player,
-                PositionRef::Point(10.try_into().unwrap()),
-                PositionRef::Point(11.try_into().unwrap()),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(10.try_into().unwrap()),
-                PositionRef::Point(12.try_into().unwrap()),
-            ),
-        ]);
+        let game = Game::from(player, Dice::from([1, 2]), board);
+        let turn = turn!(player, (10, 11), (10, 12));
 
         println!("{game}");
 
-        assert_eq!(game.take_turn(turn), Err(Error::InvalidPlayDirection));
+        assert_eq!(game.check_turn(&turn), Err(Error::InvalidPlayDirection));
     }
 
     #[test]
@@ -1176,24 +892,15 @@ mod test {
         board.point_mut(10).set(2, player);
         board.point_mut(8).set(2, Player::White);
 
-        let mut game = Game::from(player, Dice::from([1, 2]), board);
-
-        let turn = Turn(vec![
-            Play::new(
-                player,
-                PositionRef::Point(10.try_into().unwrap()),
-                PositionRef::Point(9.try_into().unwrap()),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(10.try_into().unwrap()),
-                PositionRef::Point(8.try_into().unwrap()),
-            ),
-        ]);
+        let game = Game::from(player, Dice::from([1, 2]), board);
+        let turn = turn!(player, (10, 9), (10, 8));
 
         println!("{game}");
 
-        assert_eq!(game.take_turn(turn), Err(Error::PlayMadeOntoOpposingPiece));
+        assert_eq!(
+            game.check_turn(&turn),
+            Err(Error::PlayMadeOntoOpposingPiece)
+        );
     }
 
     #[test]
@@ -1203,23 +910,11 @@ mod test {
         board.point_mut(6).set(1, player);
         board.point_mut(3).set(2, player);
 
-        let mut game = Game::from(player, Dice::from([1, 3]), board);
-
-        let turn = Turn(vec![
-            Play::new(
-                player,
-                PositionRef::Point(3.try_into().unwrap()),
-                PositionRef::Point(0.try_into().unwrap()),
-            ),
-            Play::new(
-                player,
-                PositionRef::Point(0.try_into().unwrap()),
-                PositionRef::Rail(player),
-            ),
-        ]);
+        let game = Game::from(player, Dice::from([1, 3]), board);
+        let turn = turn!(player, (3, 0), (0, off));
 
         println!("{game}");
 
-        assert_eq!(game.take_turn(turn), Err(Error::InvalidBearOff));
+        assert_eq!(game.check_turn(&turn), Err(Error::InvalidBearOff));
     }
 }

@@ -94,31 +94,31 @@ impl Display for NormalizedLocation {
 pub(crate) struct DenormalizedLocation(usize);
 
 // #[allow(dead_code)]
-// impl DenormalizedLocation {
-//     /// Normalize the given `DenormalizedLocation` to a `Player` perspective.
-//     ///
-//     /// The value must be contained within range `0..=25` for `NormalizedLocation`
-//     /// to be instantiated from `usize`, thus when this method is called, the
-//     /// `DenormalizedLocation` is guaranteed to be in range `0..=25`.
-//     pub fn normalize(self, perspective: Player) -> NormalizedLocation {
-//         match perspective {
-//             Player::Black => NormalizedLocation::new(self.0, perspective),
-//             Player::White => NormalizedLocation::new((BOARD_SIZE + 1) - self.0, perspective),
-//             Player::None => panic!("cannot normalize with perspective of `Player::None`"),
-//         }
-//         .unwrap()
-//     }
+impl DenormalizedLocation {
+    // /// Normalize the given `DenormalizedLocation` to a `Player` perspective.
+    // ///
+    // /// The value must be contained within range `0..=25` for `NormalizedLocation`
+    // /// to be instantiated from `usize`, thus when this method is called, the
+    // /// `DenormalizedLocation` is guaranteed to be in range `0..=25`.
+    // pub fn normalize(self, perspective: Player) -> NormalizedLocation {
+    //     match perspective {
+    //         Player::Black => NormalizedLocation::new(self.0, perspective),
+    //         Player::White => NormalizedLocation::new((BOARD_SIZE + 1) - self.0, perspective),
+    //         Player::None => panic!("cannot normalize with perspective of `Player::None`"),
+    //     }
+    //     .unwrap()
+    // }
 
-//     /// Converts the given `DenormalizedLocation` to an `IndexLocation`.
-//     pub fn to_index(self) -> Result<IndexLocation, Error> {
-//         // Here to avoid underflow errors from unsigned subtraction.
-//         if self.0 == 0 || self.0 == (BOARD_SIZE + 1) {
-//             return Err(Error::InvalidIndexLocation(self.0));
-//         }
+    /// Converts the given `DenormalizedLocation` to an `IndexLocation`.
+    pub fn to_index(self) -> Result<IndexLocation, Error> {
+        // Here to avoid underflow errors from unsigned subtraction.
+        if self.0 == 0 || self.0 == (BOARD_SIZE + 1) {
+            return Err(Error::InvalidIndexLocation(self.0));
+        }
 
-//         (self.0 - 1).try_into()
-//     }
-// }
+        (self.0 - 1).try_into()
+    }
+}
 
 /// Tries to create a new `DenormalizedLocation` from a `usize` validating it is
 /// contained within the range `0..=25`.
