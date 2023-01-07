@@ -153,7 +153,7 @@ impl Deref for DenormalizedLocation {
 /// Represents a range from 0 to 23 where 0 is the `Player::Black` ace and 23 is
 /// the `Player::White` ace. This position is not normalized and is absolute no
 /// matter the perspective. It is used for indexing into `Board.points`.
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub(crate) struct IndexLocation(usize);
 
 // #[allow(dead_code)]

@@ -9,7 +9,7 @@ use crate::backgammon::{
     Error,
 };
 
-use std::{io, io::Write};
+use std::{collections::HashSet, io, io::Write};
 
 #[derive(Clone)]
 pub struct Game {
@@ -93,7 +93,7 @@ impl Game {
             game.make_play(play);
         }
 
-        if game.current_roll.any_available() && game.get_available_plays().count() > 0 {
+        if game.current_roll.any_available() && !game.get_available_plays().is_empty() {
             return Err(Error::IncompleteTurn);
         }
 
@@ -232,7 +232,7 @@ impl Game {
         self.current_player.switch();
     }
 
-    fn get_available_plays(&self) -> impl Iterator<Item = Play> + '_ {
+    fn get_available_plays(&self) -> HashSet<Play> {
         fn board_iter(board: &Board, player: Player) -> Box<dyn Iterator<Item = PositionRef> + '_> {
             if board.bar(player).count > 0 {
                 Box::new([PositionRef::Bar(player)].into_iter())
@@ -245,38 +245,81 @@ impl Game {
             }
         }
 
-        board_iter(&self.board, self.current_player).flat_map(move |board_position| {
-            let rolls_iter = self
-                .current_roll
-                .available_rolls()
-                .collect::<Vec<_>>()
-                .into_iter();
+        board_iter(&self.board, self.current_player)
+            .flat_map(move |board_position| {
+                let rolls_iter = self
+                    .current_roll
+                    .available_rolls()
+                    .collect::<Vec<_>>()
+                    .into_iter();
 
-            rolls_iter
-                .flat_map(|roll| {
-                    let from = board_position.clone();
+                rolls_iter
+                    .flat_map(|roll| {
+                        let from = board_position.clone();
 
-                    let point = self.board.get(&board_position);
-                    let index = IndexLocation::try_from(match point.player {
-                        Player::Black => point
-                            .location
-                            .checked_sub(roll as usize + 1)
-                            .ok_or(Error::InvalidIndexLocation(69)),
-                        Player::White => point
-                            .location
-                            .checked_add(roll as usize - 1)
-                            .ok_or(Error::InvalidIndexLocation(69)),
-                        Player::None => Err(Error::PlayMadeOutOfTurn),
-                    }?)?;
-                    let to = PositionRef::Point(index);
-                    let play = Play::new(point.player, from, to);
+                        let point = self.board.get(&board_position);
+                        let index = IndexLocation::try_from(match point.player {
+                            Player::Black => point
+                                .location
+                                .checked_sub(roll as usize + 1)
+                                .ok_or(Error::InvalidIndexLocation(69)),
+                            Player::White => point
+                                .location
+                                .checked_add(roll as usize - 1)
+                                .ok_or(Error::InvalidIndexLocation(69)),
+                            Player::None => Err(Error::PlayMadeOutOfTurn),
+                        }?)?;
+                        let to = PositionRef::Point(index);
+                        let play = Play::new(point.player, from, to);
 
-                    self.check_play(&play)?;
+                        self.check_play(&play)?;
 
-                    Ok::<_, Error>(play)
+                        Ok::<_, Error>(play)
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect()
+    }
+
+    fn get_available_turns(&self) -> Vec<Turn> {
+        fn _get_available_turns(game: &Game) -> Vec<Vec<Play>> {
+            let plays = game.get_available_plays();
+            if plays.is_empty() {
+                return vec![vec![]];
+            }
+
+            // .filter(|play| game.check_play(play).is_ok())
+            plays
+                .into_iter()
+                .flat_map(|play| {
+                    let mut game = game.clone();
+                    game.make_play(&play);
+                    let plays: Vec<Vec<Play>> = _get_available_turns(&game)
+                        .into_iter()
+                        .map(|mut next_plays| {
+                            next_plays.splice(0..0, [play.clone()]);
+                            next_plays
+                        })
+                        .collect();
+                    plays
                 })
-                .collect::<Vec<_>>()
-        })
+                .collect()
+        }
+        // let mut game = self.clone();
+        _get_available_turns(&self.clone())
+            .into_iter()
+            .map(Turn)
+            .collect()
+
+        // for play in game.get_available_plays() {
+        //     if let Ok(_) = game.check_play(&play) {
+        //         game.make_play(&play);
+        //     }
+        // }
+
+        // if game.current_roll.any_available() && game.get_available_plays().count() > 0 {
+        //     return Err(Error::IncompleteTurn);
+        // }
     }
 }
 
@@ -298,7 +341,7 @@ impl Default for Game {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::backgammon::notation::turn;
+    use crate::backgammon::notation::{plays, turn};
 
     #[test]
     fn black_1() {
@@ -917,4 +960,106 @@ mod test {
 
         assert_eq!(game.check_turn(&turn), Err(Error::InvalidBearOff));
     }
+
+    #[test]
+    fn get_available_plays_1() {
+        let player = Player::Black;
+        let board = Board::new();
+        let game = Game::from(player, Dice::from([2, 5]), board);
+        let plays = plays!(player, (5, 3), (7, 2), (7, 5), (12, 7), (12, 10), (23, 21));
+
+        println!("{game}");
+        assert_eq!(plays, game.get_available_plays());
+    }
+
+    #[test]
+    fn get_available_plays_2() {
+        let player = Player::Black;
+        let mut board = Board::empty();
+        board.bar_mut(player).set(1, player);
+        board.point_mut(10).set(3, player);
+
+        let game = Game::from(player, Dice::from([4, 6]), board);
+        let plays = plays!(player, (bar, 20), (bar, 18));
+
+        println!("{game}");
+        assert_eq!(plays, game.get_available_plays());
+    }
+
+    #[test]
+    fn get_available_plays_3() {
+        let player = Player::White;
+        let mut board = Board::empty();
+        board.bar_mut(player).set(1, player);
+        board.point_mut(10).set(3, player);
+
+        let game = Game::from(player, Dice::from([4, 6]), board);
+        let plays = plays!(player, (bar, 3), (bar, 5));
+
+        println!("{game}");
+        assert_eq!(plays, game.get_available_plays());
+    }
+
+    #[test]
+    fn get_available_plays_4() {
+        let player = Player::White;
+        let mut board = Board::empty();
+        board.point_mut(10).set(1, player);
+        board.point_mut(23).set(3, player);
+
+        let game = Game::from(player, Dice::from([1, 4]), board);
+        let plays = plays!(player, (10, 14), (10, 11));
+
+        println!("{game}");
+        assert_eq!(plays, game.get_available_plays());
+    }
+
+    #[test]
+    fn get_available_plays_5() {
+        let player = Player::White;
+        let mut board = Board::empty();
+        board.point_mut(10).set(1, player);
+        board.point_mut(23).set(3, player);
+        board.point_mut(11).set(2, !player);
+
+        let game = Game::from(player, Dice::from([1, 4]), board);
+        let plays = plays!(player, (10, 14));
+
+        println!("{game}");
+        assert_eq!(plays, game.get_available_plays());
+    }
+
+    #[test]
+    fn get_available_plays_6() {
+        let player = Player::Black;
+        let mut board = Board::empty();
+        board.bar_mut(player).set(1, player);
+        board.point_mut(23).set(2, !player);
+        board.point_mut(22).set(2, !player);
+        board.point_mut(21).set(2, !player);
+        board.point_mut(20).set(2, !player);
+        board.point_mut(19).set(2, !player);
+        board.point_mut(18).set(2, !player);
+
+        let game = Game::from(player, Dice::from([6, 6]), board);
+        let plays = plays!(player);
+
+        println!("{game}");
+        assert_eq!(plays, game.get_available_plays());
+    }
+
+    // #[test]
+    // fn get_available_turns() {
+    //     let player = Player::Black;
+    //     let board = Board::new();
+    //     let game = Game::from(player, Dice::from([2, 5]), board);
+    //     println!("{game}");
+
+    //     let turns = game.get_available_turns();
+    //     for turn in turns {
+    //         println!("{turn}");
+    //     }
+
+    //     panic!();
+    // }
 }
