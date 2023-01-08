@@ -208,10 +208,13 @@ impl Game {
             self.current_roll.remove(self.current_roll.max());
         }
 
-        // If there is a blot where the player is moving to, then send it to
-        // their bar.
+        // If there is a blot where the player is moving to, then remove it and
+        // send it to their bar.
         if to.player == !play.player && to.count == 1 {
             let player = to.player;
+            let to = self.board.get_mut(&play.to);
+            to.count = 0;
+            to.player = Player::None;
             let bar = self.board.bar_mut(player);
             bar.count += 1;
         }
@@ -674,6 +677,54 @@ mod test {
 
         println!("{board}");
 
+        assert_eq!(game.board, board);
+    }
+
+    #[test]
+    fn hit() {
+        let player = Player::White;
+        let mut board = Board::empty();
+        board.point_mut(0).set(2, player);
+        board.point_mut(11).set(3, player);
+        board.point_mut(16).set(3, player);
+        board.point_mut(18).set(5, player);
+        board.point_mut(19).set(2, player);
+
+        board.point_mut(2).set(1, !player);
+        board.point_mut(3).set(1, !player);
+        board.point_mut(5).set(4, !player);
+        board.point_mut(7).set(3, !player);
+        board.point_mut(12).set(4, !player);
+        board.point_mut(21).set(1, !player);
+        board.point_mut(23).set(1, !player);
+        let mut game = Game::from(player, Dice::from([3, 2]), board);
+        let turn = turn!(player, (0, 2), (0, 3));
+
+        println!("{game}");
+        assert_eq!(game.check_turn(&turn), Ok(()));
+
+        game.take_turn(&turn);
+        println!("{game}");
+
+        let mut board = Board::empty();
+        // board.point_mut(0).set(2, player);
+        board.point_mut(2).set(1, player);
+        board.point_mut(3).set(1, player);
+        board.point_mut(11).set(3, player);
+        board.point_mut(16).set(3, player);
+        board.point_mut(18).set(5, player);
+        board.point_mut(19).set(2, player);
+
+        board.bar_mut(!player).set(2, !player);
+        // board.point_mut(2).set(1, !player);
+        // board.point_mut(3).set(1, !player);
+        board.point_mut(5).set(4, !player);
+        board.point_mut(7).set(3, !player);
+        board.point_mut(12).set(4, !player);
+        board.point_mut(21).set(1, !player);
+        board.point_mut(23).set(1, !player);
+
+        println!("{board}");
         assert_eq!(game.board, board);
     }
 
