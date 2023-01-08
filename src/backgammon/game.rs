@@ -68,8 +68,20 @@ impl Game {
             }
 
             self.take_turn(&turn);
+
+            if self.board.all_in_rail(self.current_player) {
+                break;
+            }
             self.change_turn();
         }
+        println!(
+            "{} won {}-{}",
+            self.current_player,
+            self.board.rail(self.current_player).count,
+            self.board.rail(!self.current_player).count,
+        );
+    }
+
     }
 
     #[allow(unstable_name_collisions)]

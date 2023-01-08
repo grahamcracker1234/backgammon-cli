@@ -18,7 +18,6 @@ pub(crate) struct Board {
     points: [Position; BOARD_SIZE],
     bar: [Position; 2],
     rail: [Position; 2],
-    // totals: [u8; 2],
 }
 
 impl Board {
@@ -53,29 +52,7 @@ impl Board {
             ),
         ];
 
-        // let totals = [
-        //     points
-        //         .iter()
-        //         .filter_map(|p| match p.borrow().player {
-        //             Player::Black => Some(p.borrow().count),
-        //             _ => None,
-        //         })
-        //         .sum(),
-        //     points
-        //         .iter()
-        //         .filter_map(|p| match p.borrow().player {
-        //             Player::White => Some(p.borrow().count),
-        //             _ => None,
-        //         })
-        //         .sum(),
-        // ];
-
-        Self {
-            points,
-            bar,
-            rail,
-            // totals,
-        }
+        Self { points, bar, rail }
     }
 
     pub fn new() -> Self {
@@ -175,6 +152,25 @@ impl Board {
         };
 
         !self.any_behind(index, player)
+    }
+
+    pub fn all_in_rail(&self, player: Player) -> bool {
+        let positions = self
+            .points
+            .iter()
+            .chain(self.bar.iter())
+            .chain(self.rail.iter());
+        let total = positions
+            .filter_map(|p| {
+                if p.player == player {
+                    Some(p.count)
+                } else {
+                    None
+                }
+            })
+            .sum();
+
+        self.rail(player).count == total
     }
 }
 
@@ -384,5 +380,28 @@ mod tests {
         board.bar_mut(player).set(1, player);
         println!("{board}");
         assert!(!board.all_in_home(player));
+    }
+
+    #[test]
+    fn all_in_rail_1() {
+        let player = Player::Black;
+        let mut board = Board::empty();
+        board.rail_mut(player).set(5, player);
+        board.point_mut(2).set(1, !player);
+        board.point_mut(3).set(1, !player);
+        println!("{board}");
+        assert!(board.all_in_rail(player));
+    }
+
+    #[test]
+    fn all_in_rail_2() {
+        let player = Player::White;
+        let mut board = Board::empty();
+        board.rail_mut(player).set(5, player);
+        board.point_mut(9).set(1, !player);
+        board.point_mut(16).set(1, !player);
+        board.point_mut(5).set(1, player);
+        println!("{board}");
+        assert!(!board.all_in_rail(player));
     }
 }
