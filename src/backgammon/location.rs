@@ -77,14 +77,14 @@ impl Display for NormalizedLocation {
 //     }
 // }
 
-// /// Gets the `usize` from a `NormalizedLocation`.
-// impl Deref for NormalizedLocation {
-//     type Target = usize;
+/// Gets the `usize` from a `NormalizedLocation`.
+impl Deref for NormalizedLocation {
+    type Target = usize;
 
-//     fn deref(&self) -> &Self::Target {
-//         &self.0
-//     }
-// }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 /// Represents a range from 0 to 25 where 0 is the `Player::Black` rail and the
 /// `Player::White`bar, 1 is the `Player::Black` ace, 24 is the `Player::White`
@@ -95,19 +95,19 @@ pub(crate) struct DenormalizedLocation(usize);
 
 // #[allow(dead_code)]
 impl DenormalizedLocation {
-    // /// Normalize the given `DenormalizedLocation` to a `Player` perspective.
-    // ///
-    // /// The value must be contained within range `0..=25` for `NormalizedLocation`
-    // /// to be instantiated from `usize`, thus when this method is called, the
-    // /// `DenormalizedLocation` is guaranteed to be in range `0..=25`.
-    // pub fn normalize(self, perspective: Player) -> NormalizedLocation {
-    //     match perspective {
-    //         Player::Black => NormalizedLocation::new(self.0, perspective),
-    //         Player::White => NormalizedLocation::new((BOARD_SIZE + 1) - self.0, perspective),
-    //         Player::None => panic!("cannot normalize with perspective of `Player::None`"),
-    //     }
-    //     .unwrap()
-    // }
+    /// Normalize the given `DenormalizedLocation` to a `Player` perspective.
+    ///
+    /// The value must be contained within range `0..=25` for `NormalizedLocation`
+    /// to be instantiated from `usize`, thus when this method is called, the
+    /// `DenormalizedLocation` is guaranteed to be in range `0..=25`.
+    pub fn normalize(self, perspective: Player) -> NormalizedLocation {
+        match perspective {
+            Player::Black => NormalizedLocation::new(self.0, perspective),
+            Player::White => NormalizedLocation::new((BOARD_SIZE + 1) - self.0, perspective),
+            Player::None => panic!("cannot normalize with perspective of `Player::None`"),
+        }
+        .unwrap()
+    }
 
     /// Converts the given `DenormalizedLocation` to an `IndexLocation`.
     pub fn to_index(self) -> Result<IndexLocation, Error> {
@@ -153,7 +153,7 @@ impl Deref for DenormalizedLocation {
 /// Represents a range from 0 to 23 where 0 is the `Player::Black` ace and 23 is
 /// the `Player::White` ace. This position is not normalized and is absolute no
 /// matter the perspective. It is used for indexing into `Board.points`.
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub(crate) struct IndexLocation(usize);
 
 // #[allow(dead_code)]

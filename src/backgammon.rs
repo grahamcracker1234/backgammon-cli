@@ -26,6 +26,7 @@ pub(crate) enum Error {
     InvalidPlayDirection,
     PlayMadeOntoOpposingPiece,
     InvalidBearOff,
+    NonMaximalTurn,
 }
 
 impl std::fmt::Display for Error {
@@ -65,6 +66,7 @@ impl std::fmt::Display for Error {
             Error::InvalidBearOff => {
                 write!(f, "attempted to bear off without all pieces in home board")
             }
+            Error::NonMaximalTurn => write!(f, "a turn must use as many moves as possible preferring larger moves if not all can be used")
         }
     }
 }
