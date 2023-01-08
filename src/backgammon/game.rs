@@ -276,20 +276,6 @@ impl Game {
                             Err(_) => PositionRef::Rail(player),
                         };
 
-                        // let position = self.board.get(&board_position);
-                        // let index = IndexLocation::try_from(match position.player {
-                        //     Player::Black => position
-                        //         .location
-                        //         .checked_sub(roll as usize + 1)
-                        //         .ok_or(Error::InvalidIndexLocation(69)),
-                        //     Player::White => position
-                        //         .location
-                        //         .checked_add(roll as usize - 1)
-                        //         .ok_or(Error::InvalidIndexLocation(69)),
-                        //     Player::None => Err(Error::PlayMadeOutOfTurn),
-                        // }?)?;
-                        // let to = PositionRef::Point(index);
-
                         let play = Play::new(player, from, to);
 
                         self.check_play(&play)?;
