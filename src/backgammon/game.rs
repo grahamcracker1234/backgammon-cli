@@ -1099,18 +1099,32 @@ mod test {
 
     #[test]
     fn get_available_turns_3() {
-        let player = Player::Black;
+        let player = Player::White;
         let mut board = Board::empty();
-        board.bar_mut(player).set(1, player);
-        board.point_mut(23).set(2, !player);
-        board.point_mut(22).set(2, !player);
-        board.point_mut(21).set(2, !player);
-        board.point_mut(20).set(2, !player);
+        board.point_mut(0).set(2, !player);
+        board.point_mut(1).set(2, !player);
+        board.point_mut(2).set(2, !player);
+        board.point_mut(3).set(1, player);
+        board.point_mut(4).set(2, !player);
+        board.point_mut(5).set(2, !player);
+        board.point_mut(6).set(2, !player);
+        board.point_mut(7).set(2, !player);
+        board.point_mut(9).set(2, !player);
+        board.point_mut(10).set(1, player);
+        board.point_mut(11).set(2, !player);
+        board.point_mut(12).set(2, !player);
+        board.point_mut(13).set(2, !player);
+        board.point_mut(14).set(2, !player);
+        board.point_mut(16).set(2, !player);
+        board.point_mut(17).set(2, !player);
         board.point_mut(19).set(2, !player);
-        board.point_mut(18).set(2, !player);
+        board.point_mut(20).set(2, !player);
+        board.point_mut(21).set(2, !player);
+        board.point_mut(22).set(2, !player);
+        board.point_mut(23).set(2, !player);
 
-        let game = Game::from(player, Dice::from([6, 6]), board);
-        let turns = HashSet::from([turn!(player)]);
+        let game = Game::from(player, Dice::from([3, 5]), board);
+        let turns = HashSet::from([turn!(player, (10, 15), (15, 18))]);
 
         println!("{game}");
         assert_eq!(turns, game.get_available_turns());
