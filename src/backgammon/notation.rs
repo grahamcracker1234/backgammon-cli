@@ -92,7 +92,7 @@ impl Turn {
             .map(|play| {
                 let from = board.get(&play.from);
                 let to = board.get(&play.to);
-                from.distance(&to)
+                from.distance(to)
             })
             .sum()
     }

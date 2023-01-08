@@ -3,7 +3,7 @@ use colored::Colorize;
 use crate::backgammon::{
     board::{Board, BOARD_SIZE},
     dice::Dice,
-    location::IndexLocation,
+    location::{IndexLocation, NormalizedLocation},
     notation::{Notation, Play, PositionRef, Turn},
     player::Player,
     Error,
@@ -97,6 +97,10 @@ impl Game {
             return Err(Error::IncompleteTurn);
         }
 
+        if !self.get_available_turns().contains(turn) {
+            return Err(Error::NonMaximalTurn);
+        }
+
         Ok(())
     }
 
@@ -161,12 +165,14 @@ impl Game {
         let len = to.distance(from).try_into().expect("value was truncated");
         if !self.current_roll.check(len) {
             // Ensure a piece can be borne off with a greater roll than necessary only if there are no pieces behind it.
-            let PositionRef::Point(index) = play.from else {
-                panic!("osdjfo");
-            };
+            let index = from
+                .location
+                .to_index()
+                .expect("location should be indexable");
 
             if !matches!(play.to, PositionRef::Rail(_))
                 || self.board.any_behind(*index, play.player)
+                || len > self.current_roll.max()
             {
                 return Err(Error::InvalidPlayLength(len));
             }
@@ -255,22 +261,36 @@ impl Game {
 
                 rolls_iter
                     .flat_map(|roll| {
+                        let player = self.current_player;
                         let from = board_position.clone();
+                        let from_location =
+                            self.board.get(&board_position).location.normalize(player);
 
-                        let point = self.board.get(&board_position);
-                        let index = IndexLocation::try_from(match point.player {
-                            Player::Black => point
-                                .location
-                                .checked_sub(roll as usize + 1)
-                                .ok_or(Error::InvalidIndexLocation(69)),
-                            Player::White => point
-                                .location
-                                .checked_add(roll as usize - 1)
-                                .ok_or(Error::InvalidIndexLocation(69)),
-                            Player::None => Err(Error::PlayMadeOutOfTurn),
-                        }?)?;
-                        let to = PositionRef::Point(index);
-                        let play = Play::new(point.player, from, to);
+                        let to_location = match from_location.checked_sub(roll as usize) {
+                            Some(i) => NormalizedLocation::new(i, player)?,
+                            None => NormalizedLocation::new(0, player)?,
+                        };
+
+                        let to = match to_location.to_index() {
+                            Ok(index) => PositionRef::Point(index),
+                            Err(_) => PositionRef::Rail(player),
+                        };
+
+                        // let position = self.board.get(&board_position);
+                        // let index = IndexLocation::try_from(match position.player {
+                        //     Player::Black => position
+                        //         .location
+                        //         .checked_sub(roll as usize + 1)
+                        //         .ok_or(Error::InvalidIndexLocation(69)),
+                        //     Player::White => position
+                        //         .location
+                        //         .checked_add(roll as usize - 1)
+                        //         .ok_or(Error::InvalidIndexLocation(69)),
+                        //     Player::None => Err(Error::PlayMadeOutOfTurn),
+                        // }?)?;
+                        // let to = PositionRef::Point(index);
+
+                        let play = Play::new(player, from, to);
 
                         self.check_play(&play)?;
 
@@ -728,10 +748,10 @@ mod test {
     fn bear_off_3() {
         let player = Player::White;
         let mut board = Board::empty();
-        board.point_mut(18).set(3, player);
+        board.point_mut(19).set(3, player);
 
         let mut game = Game::from(player, Dice::from([6, 5]), board);
-        let turn = turn!(player, (18, off), (18, off));
+        let turn = turn!(player, (19, off), (19, off));
 
         println!("{game}");
 
@@ -741,7 +761,7 @@ mod test {
         println!("{game}");
 
         let mut board = Board::empty();
-        board.point_mut(18).set(1, player);
+        board.point_mut(19).set(1, player);
         board.rail_mut(player).set(2, player);
 
         println!("{board}");
@@ -962,6 +982,39 @@ mod test {
     }
 
     #[test]
+    fn non_maximal_turn() {
+        let player = Player::White;
+        let mut board = Board::empty();
+        board.point_mut(0).set(2, !player);
+        board.point_mut(1).set(2, !player);
+        board.point_mut(2).set(2, !player);
+        board.point_mut(3).set(1, player);
+        board.point_mut(4).set(2, !player);
+        board.point_mut(5).set(2, !player);
+        board.point_mut(6).set(2, !player);
+        board.point_mut(7).set(2, !player);
+        board.point_mut(9).set(2, !player);
+        board.point_mut(10).set(1, player);
+        board.point_mut(11).set(2, !player);
+        board.point_mut(12).set(2, !player);
+        board.point_mut(13).set(2, !player);
+        board.point_mut(14).set(2, !player);
+        board.point_mut(16).set(2, !player);
+        board.point_mut(17).set(2, !player);
+        board.point_mut(19).set(2, !player);
+        board.point_mut(20).set(2, !player);
+        board.point_mut(21).set(2, !player);
+        board.point_mut(22).set(2, !player);
+        board.point_mut(23).set(2, !player);
+
+        let game = Game::from(player, Dice::from([3, 5]), board);
+        let turn = turn!(player, (3, 8));
+
+        println!("{game}");
+        assert_eq!(game.check_turn(&turn), Err(Error::NonMaximalTurn));
+    }
+
+    #[test]
     fn get_available_plays_1() {
         let player = Player::Black;
         let board = Board::new();
@@ -1043,6 +1096,19 @@ mod test {
 
         let game = Game::from(player, Dice::from([6, 6]), board);
         let plays = plays!(player);
+
+        println!("{game}");
+        assert_eq!(plays, game.get_available_plays());
+    }
+
+    #[test]
+    fn get_available_plays_7() {
+        let player = Player::Black;
+        let mut board = Board::empty();
+        board.point_mut(4).set(3, player);
+
+        let game = Game::from(player, Dice::from([5, 4]), board);
+        let plays = plays!(player, (4, off), (4, 0));
 
         println!("{game}");
         assert_eq!(plays, game.get_available_plays());
