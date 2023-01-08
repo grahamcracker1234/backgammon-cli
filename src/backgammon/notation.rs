@@ -81,8 +81,22 @@ impl Notation {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub(crate) struct Turn(pub Vec<Play>);
+
+impl Turn {
+    pub fn distance(&self, board: &Board) -> usize {
+        let Turn(plays) = self;
+        plays
+            .iter()
+            .map(|play| {
+                let from = board.get(&play.from);
+                let to = board.get(&play.to);
+                from.distance(&to)
+            })
+            .sum()
+    }
+}
 
 impl Display for Turn {
     #[allow(unstable_name_collisions)]

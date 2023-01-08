@@ -281,7 +281,7 @@ impl Game {
             .collect()
     }
 
-    fn get_available_turns(&self) -> Vec<Turn> {
+    fn get_available_turns(&self) -> HashSet<Turn> {
         fn _get_available_turns(game: &Game) -> Vec<Vec<Play>> {
             let plays = game.get_available_plays();
             if plays.is_empty() {
@@ -305,21 +305,21 @@ impl Game {
                 })
                 .collect()
         }
-        // let mut game = self.clone();
-        _get_available_turns(&self.clone())
+        let turns: HashSet<Turn> = _get_available_turns(&self.clone())
             .into_iter()
             .map(Turn)
+            .collect();
+
+        let max = turns
+            .iter()
+            .map(|turn| turn.distance(&self.board))
+            .max()
+            .unwrap_or(0);
+
+        turns
+            .into_iter()
+            .filter(|turn| turn.distance(&self.board) == max)
             .collect()
-
-        // for play in game.get_available_plays() {
-        //     if let Ok(_) = game.check_play(&play) {
-        //         game.make_play(&play);
-        //     }
-        // }
-
-        // if game.current_roll.any_available() && game.get_available_plays().count() > 0 {
-        //     return Err(Error::IncompleteTurn);
-        // }
     }
 }
 
@@ -1048,18 +1048,71 @@ mod test {
         assert_eq!(plays, game.get_available_plays());
     }
 
-    // #[test]
-    // fn get_available_turns() {
-    //     let player = Player::Black;
-    //     let board = Board::new();
-    //     let game = Game::from(player, Dice::from([2, 5]), board);
-    //     println!("{game}");
+    #[test]
+    fn get_available_turns_1() {
+        let player = Player::Black;
+        let board = Board::new();
+        let game = Game::from(player, Dice::from([2, 5]), board);
+        let turns = HashSet::from([
+            turn!(player, (5, 3), (7, 2)),
+            turn!(player, (5, 3), (12, 7)),
+            turn!(player, (7, 2), (5, 3)),
+            turn!(player, (7, 2), (7, 5)),
+            turn!(player, (7, 2), (12, 10)),
+            turn!(player, (7, 2), (23, 21)),
+            turn!(player, (7, 5), (7, 2)),
+            turn!(player, (7, 5), (12, 7)),
+            turn!(player, (12, 10), (7, 2)),
+            turn!(player, (12, 10), (10, 5)),
+            turn!(player, (12, 10), (12, 7)),
+            turn!(player, (12, 7), (5, 3)),
+            turn!(player, (12, 7), (7, 5)),
+            turn!(player, (12, 7), (12, 10)),
+            turn!(player, (12, 7), (23, 21)),
+            turn!(player, (23, 21), (12, 7)),
+            turn!(player, (23, 21), (7, 2)),
+            turn!(player, (23, 21), (12, 7)),
+        ]);
 
-    //     let turns = game.get_available_turns();
-    //     for turn in turns {
-    //         println!("{turn}");
-    //     }
+        println!("{game}");
+        assert_eq!(turns, game.get_available_turns());
+    }
 
-    //     panic!();
-    // }
+    #[test]
+    fn get_available_turns_2() {
+        let player = Player::Black;
+        let mut board = Board::empty();
+        board.bar_mut(player).set(1, player);
+        board.point_mut(23).set(2, !player);
+        board.point_mut(22).set(2, !player);
+        board.point_mut(21).set(2, !player);
+        board.point_mut(20).set(2, !player);
+        board.point_mut(19).set(2, !player);
+        board.point_mut(18).set(2, !player);
+
+        let game = Game::from(player, Dice::from([6, 6]), board);
+        let turns = HashSet::from([turn!(player)]);
+
+        println!("{game}");
+        assert_eq!(turns, game.get_available_turns());
+    }
+
+    #[test]
+    fn get_available_turns_3() {
+        let player = Player::Black;
+        let mut board = Board::empty();
+        board.bar_mut(player).set(1, player);
+        board.point_mut(23).set(2, !player);
+        board.point_mut(22).set(2, !player);
+        board.point_mut(21).set(2, !player);
+        board.point_mut(20).set(2, !player);
+        board.point_mut(19).set(2, !player);
+        board.point_mut(18).set(2, !player);
+
+        let game = Game::from(player, Dice::from([6, 6]), board);
+        let turns = HashSet::from([turn!(player)]);
+
+        println!("{game}");
+        assert_eq!(turns, game.get_available_turns());
+    }
 }
