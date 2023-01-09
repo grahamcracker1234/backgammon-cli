@@ -9,6 +9,7 @@ use crate::backgammon::{
     Error,
 };
 
+use rand::seq::SliceRandom;
 use std::{collections::HashSet, io, io::Write};
 
 #[derive(Clone)]
@@ -39,9 +40,6 @@ impl Game {
 
     pub fn start(&mut self) {
         loop {
-            let saved_board = self.board.clone();
-            let saved_roll = self.current_roll.clone();
-
             println!("\n{self}\n");
 
             let notation = match self.get_notation() {
@@ -62,8 +60,6 @@ impl Game {
 
             if let Err(error) = self.check_turn(&turn) {
                 println!("{}", error.to_string().red().bold());
-                self.board = saved_board;
-                self.current_roll = saved_roll;
                 continue;
             }
 
@@ -82,6 +78,60 @@ impl Game {
         );
     }
 
+    pub fn start_vs_random(&mut self) {
+        let player = Player::random();
+        loop {
+            if self.current_player == player {
+                let saved_board = self.board.clone();
+                let saved_roll = self.current_roll.clone();
+
+                println!("\n{self}\n");
+
+                let notation = match self.get_notation() {
+                    Ok(notation) => notation,
+                    Err(error) => {
+                        println!("{}", error.to_string().red().bold());
+                        continue;
+                    }
+                };
+
+                let turn = match notation.turn() {
+                    Ok(turn) => turn,
+                    Err(error) => {
+                        println!("{}", error.to_string().red().bold());
+                        continue;
+                    }
+                };
+
+                if let Err(error) = self.check_turn(&turn) {
+                    println!("{}", error.to_string().red().bold());
+                    self.board = saved_board;
+                    self.current_roll = saved_roll;
+                    continue;
+                }
+
+                self.take_turn(&turn);
+
+                println!("\n{self}\n");
+
+                self.change_turn();
+            } else {
+                println!("\n{self}\n");
+                println!("({})", self.current_roll);
+                let turns = self.get_available_turns();
+                if let Some(turn) = turns
+                    .into_iter()
+                    .collect::<Vec<_>>()
+                    .choose(&mut rand::thread_rng())
+                {
+                    println!("{turn}");
+                    self.take_turn(&turn);
+                }
+                println!("\n{self}\n");
+
+                self.change_turn();
+            }
+        }
     }
 
     #[allow(unstable_name_collisions)]
