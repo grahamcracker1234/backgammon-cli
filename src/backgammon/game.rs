@@ -82,8 +82,6 @@ impl Game {
         );
     }
 
-    }
-
     #[allow(unstable_name_collisions)]
     fn get_notation(&self) -> io::Result<Notation> {
         let prompt = format!("{} to play ({}): ", self.current_player, self.current_roll);
