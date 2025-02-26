@@ -3,7 +3,7 @@ use colored::Colorize;
 use crate::backgammon::{
     board::{Board, BOARD_SIZE},
     dice::Dice,
-    location::{IndexLocation, NormalizedLocation},
+    location::{Index, Normalized},
     notation::{Notation, Play, PositionRef, Turn},
     player::Player,
     Error,
@@ -258,7 +258,7 @@ impl Game {
             } else {
                 Box::new(
                     (0..BOARD_SIZE)
-                        .map(|i| PositionRef::Point(IndexLocation::try_from(i).unwrap()))
+                        .map(|i| PositionRef::Point(Index::try_from(i).unwrap()))
                         .filter(move |p| board.get(p).player == player),
                 )
             }
@@ -275,13 +275,13 @@ impl Game {
                 rolls_iter
                     .flat_map(|roll| {
                         let player = self.current_player;
-                        let from = board_position.clone();
+                        let from = board_position;
                         let from_location =
                             self.board.get(&board_position).location.normalize(player);
 
                         let to_location = match from_location.checked_sub(roll as usize) {
-                            Some(i) => NormalizedLocation::new(i, player)?,
-                            None => NormalizedLocation::new(0, player)?,
+                            Some(i) => Normalized::new(i, player)?,
+                            None => Normalized::new(0, player)?,
                         };
 
                         let to = to_location

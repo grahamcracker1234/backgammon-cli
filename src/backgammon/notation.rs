@@ -6,7 +6,7 @@ use regex::Regex;
 
 use crate::backgammon::{
     board::Board,
-    location::{IndexLocation, NormalizedLocation},
+    location::{Index, Normalized},
     player::Player,
     Error,
 };
@@ -73,7 +73,7 @@ impl Notation {
                     "off" => PositionRef::Rail(self.player),
                     pos => {
                         let pos = pos.parse::<usize>().expect("pos should be an integer");
-                        let norm = NormalizedLocation::new(pos, self.player)?;
+                        let norm = Normalized::new(pos, self.player)?;
                         let index = norm.to_index()?;
                         PositionRef::Point(index)
                     }
@@ -135,11 +135,11 @@ macro_rules! turn {
 #[allow(unused)]
 pub(crate) use turn;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PositionRef {
     Bar(Player),
     Rail(Player),
-    Point(IndexLocation),
+    Point(Index),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

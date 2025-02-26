@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use std::iter;
 
 use crate::backgammon::{
-    location::{DenormalizedLocation, IndexLocation, NormalizedLocation},
+    location::{Denormalized, Index, Normalized},
     notation::PositionRef,
     player::Player,
 };
@@ -23,30 +23,24 @@ pub struct Board {
 impl Board {
     pub fn empty() -> Self {
         let points: [_; BOARD_SIZE] = (0..BOARD_SIZE)
-            .map(|i| {
-                Position::new(
-                    IndexLocation::try_from(i).unwrap().denormalize(),
-                    0,
-                    Player::None,
-                )
-            })
+            .map(|i| Position::new(Index::try_from(i).unwrap().denormalize(), 0, Player::None))
             .collect::<Vec<_>>()
             .try_into()
             .unwrap();
 
         let bar = [
             Position::new(
-                DenormalizedLocation::try_from(BOARD_SIZE + 1).unwrap(),
+                Denormalized::try_from(BOARD_SIZE + 1).unwrap(),
                 0,
                 Player::Black,
             ),
-            Position::new(DenormalizedLocation::try_from(0).unwrap(), 0, Player::White),
+            Position::new(Denormalized::try_from(0).unwrap(), 0, Player::White),
         ];
 
         let rail = [
-            Position::new(DenormalizedLocation::try_from(0).unwrap(), 0, Player::Black),
+            Position::new(Denormalized::try_from(0).unwrap(), 0, Player::Black),
             Position::new(
-                DenormalizedLocation::try_from(BOARD_SIZE + 1).unwrap(),
+                Denormalized::try_from(BOARD_SIZE + 1).unwrap(),
                 0,
                 Player::White,
             ),
@@ -205,7 +199,7 @@ impl std::fmt::Display for Board {
             ($range:expr $(, $rev:ident)?) => {
                 (bkgm_format!(index_format, $range $(, $rev)?), bkgm_format!(|i| {
                     point_format(&self.points[
-                        *NormalizedLocation::new(i, perspective)
+                        *Normalized::new(i, perspective)
                             .unwrap()
                             .to_index()
                             .unwrap()
@@ -299,13 +293,13 @@ impl PartialEq for Board {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Position {
-    pub location: DenormalizedLocation,
+    pub location: Denormalized,
     pub count: u8,
     pub player: Player,
 }
 
 impl Position {
-    const fn new(location: DenormalizedLocation, count: u8, player: Player) -> Self {
+    const fn new(location: Denormalized, count: u8, player: Player) -> Self {
         Self {
             location,
             count,
