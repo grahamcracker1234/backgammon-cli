@@ -7,8 +7,8 @@ use std::ops::Deref;
 /// bar, 1 is the player's ace, 24 is the opponent's ace, and 25 is the player's
 /// bar and the opponent's rail. This position is normalized to a given player's
 /// perspective and is not absolute.
-#[derive(Debug, PartialEq)]
-pub(crate) struct NormalizedLocation(usize, Player);
+#[derive(Debug, PartialEq, Eq)]
+pub struct NormalizedLocation(usize, Player);
 
 // #[allow(dead_code)]
 impl NormalizedLocation {
@@ -19,7 +19,7 @@ impl NormalizedLocation {
         }
 
         if (0..=25).contains(&position) {
-            Ok(NormalizedLocation(position, player))
+            Ok(Self(position, player))
         } else {
             Err(Error::InvalidNormalizedLocation(position, player))
         }
@@ -90,8 +90,8 @@ impl Deref for NormalizedLocation {
 /// `Player::White`bar, 1 is the `Player::Black` ace, 24 is the `Player::White`
 /// ace, and 25 is the `Player::Black` bar and the `Player::White` rail. This
 /// position is not normalized and is absolute no matter the perspective.
-#[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
-pub(crate) struct DenormalizedLocation(usize);
+#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, Copy)]
+pub struct DenormalizedLocation(usize);
 
 // #[allow(dead_code)]
 impl DenormalizedLocation {
@@ -127,7 +127,7 @@ impl TryFrom<usize> for DenormalizedLocation {
 
     fn try_from(value: usize) -> Result<Self, Self::Error> {
         if (0..=25).contains(&value) {
-            Ok(DenormalizedLocation(value))
+            Ok(Self(value))
         } else {
             Err(Error::InvalidDenormalizedLocation(value))
         }
@@ -154,7 +154,7 @@ impl Deref for DenormalizedLocation {
 /// the `Player::White` ace. This position is not normalized and is absolute no
 /// matter the perspective. It is used for indexing into `Board.points`.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
-pub(crate) struct IndexLocation(usize);
+pub struct IndexLocation(usize);
 
 // #[allow(dead_code)]
 impl IndexLocation {
@@ -189,7 +189,7 @@ impl TryFrom<usize> for IndexLocation {
 
     fn try_from(value: usize) -> Result<Self, Self::Error> {
         if (0..=23).contains(&value) {
-            Ok(IndexLocation(value))
+            Ok(Self(value))
         } else {
             Err(Error::InvalidIndexLocation(value))
         }

@@ -2,6 +2,12 @@
 name = "backgammon-cli"
 version = "0.1.0"
 edition = "2021"
+description = "A command-line interface for playing backgammon with a text-based UI"
+license = "MIT"
+repository = "https://github.com/grahampreston/backgammon-cli"
+readme = "README.md"
+keywords = ["backgammon", "game", "cli", "board-game", "terminal"]
+categories = ["games", "command-line-utilities"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -10,3 +16,14 @@ colored = "2.0.0"
 itertools = "0.10.5"
 rand = "0.8.5"
 regex = "1.7.0"
+
+[lints.clippy]
+all = "warn"
+correctness = "deny"
+suspicious = "warn"
+style = "warn"
+complexity = "warn"
+perf = "warn"
+restriction = "allow"
+nursery = "warn"
+cargo = "warn"

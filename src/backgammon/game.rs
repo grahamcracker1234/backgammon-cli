@@ -23,13 +23,13 @@ impl Game {
     pub fn new() -> Self {
         Self {
             current_player: Player::random(),
-            board: Board::new(),
             current_roll: Dice::first_roll(),
+            board: Board::new(),
         }
     }
 
-    #[allow(dead_code)]
-    fn from(current_player: Player, current_roll: Dice, board: Board) -> Self {
+    #[cfg(test)]
+    const fn from(current_player: Player, current_roll: Dice, board: Board) -> Self {
         Self {
             current_player,
             current_roll,
@@ -254,7 +254,7 @@ impl Game {
     fn get_available_plays(&self) -> HashSet<Play> {
         fn board_iter(board: &Board, player: Player) -> Box<dyn Iterator<Item = PositionRef> + '_> {
             if board.bar(player).count > 0 {
-                Box::new([PositionRef::Bar(player)].into_iter())
+                Box::new(std::iter::once(PositionRef::Bar(player)))
             } else {
                 Box::new(
                     (0..BOARD_SIZE)
@@ -284,10 +284,9 @@ impl Game {
                             None => NormalizedLocation::new(0, player)?,
                         };
 
-                        let to = match to_location.to_index() {
-                            Ok(index) => PositionRef::Point(index),
-                            Err(_) => PositionRef::Rail(player),
-                        };
+                        let to = to_location
+                            .to_index()
+                            .map_or(PositionRef::Rail(player), PositionRef::Point);
 
                         let play = Play::new(player, from, to);
 
@@ -353,7 +352,7 @@ impl std::fmt::Display for Game {
 
 impl Default for Game {
     fn default() -> Self {
-        Game::new()
+        Self::new()
     }
 }
 

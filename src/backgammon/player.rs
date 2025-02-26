@@ -1,5 +1,5 @@
 #[derive(Clone, Copy, Eq, Debug, Hash, PartialEq)]
-pub(crate) enum Player {
+pub enum Player {
     Black = 0,
     White = 1,
     None = 2,
@@ -12,9 +12,9 @@ impl Player {
 
     pub fn random() -> Self {
         if rand::random::<bool>() {
-            Player::Black
+            Self::Black
         } else {
-            Player::White
+            Self::White
         }
     }
 }
@@ -34,9 +34,9 @@ impl std::ops::Not for Player {
 impl std::fmt::Display for Player {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
-            Player::Black => "Black",
-            Player::White => "White",
-            Player::None => "None",
+            Self::Black => "Black",
+            Self::White => "White",
+            Self::None => "None",
         })
     }
 }

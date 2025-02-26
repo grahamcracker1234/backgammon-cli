@@ -9,7 +9,7 @@ const COUNT: usize = 2;
 const SIDES: u8 = 6;
 
 #[derive(Clone)]
-pub(crate) struct Dice {
+pub struct Dice {
     dice: [u8; COUNT],
     cast_freq: HashMap<u8, u8>,
 }
@@ -71,7 +71,7 @@ impl Dice {
     }
 
     pub fn reroll(&mut self) {
-        *self = Dice::roll();
+        *self = Self::roll();
     }
 
     pub fn first_roll() -> Self {

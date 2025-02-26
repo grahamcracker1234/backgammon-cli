@@ -13,7 +13,7 @@ use crate::backgammon::{
 
 /// Represents [backgammon notation](https://en.wikipedia.org/wiki/Backgammon_notation)
 /// for the given input and player.
-pub(crate) struct Notation {
+pub struct Notation {
     /// The notation
     input: String,
     /// The player
@@ -22,7 +22,7 @@ pub(crate) struct Notation {
 
 impl Notation {
     /// Create a `Notation`.
-    pub fn new(input: String, player: Player) -> Self {
+    pub const fn new(input: String, player: Player) -> Self {
         Self { input, player }
     }
 
@@ -36,13 +36,15 @@ impl Notation {
         let play_groups: Result<Vec<_>, _> = self
             .input
             .split_whitespace()
-            .map(|group| match re.find(group) {
-                Some(m) => {
-                    let input = m.as_str().to_owned();
-                    let notation = Notation::new(input, self.player);
-                    notation.get_play_group()
-                }
-                None => Err(Error::InvalidNotation(group.to_owned())),
+            .map(|group| {
+                re.find(group).map_or_else(
+                    || Err(Error::InvalidNotation(group.to_owned())),
+                    |m| {
+                        let input = m.as_str().to_owned();
+                        let notation = Self::new(input, self.player);
+                        notation.get_play_group()
+                    },
+                )
             })
             .flatten_ok()
             .collect();
@@ -82,11 +84,11 @@ impl Notation {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
-pub(crate) struct Turn(pub Vec<Play>);
+pub struct Turn(pub Vec<Play>);
 
 impl Turn {
     pub fn distance(&self, board: &Board) -> usize {
-        let Turn(plays) = self;
+        let Self(plays) = self;
         plays
             .iter()
             .map(|play| {
@@ -98,10 +100,10 @@ impl Turn {
     }
 }
 
+#[allow(unstable_name_collisions)]
 impl Display for Turn {
-    #[allow(unstable_name_collisions)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Turn(plays) = self;
+        let Self(plays) = self;
         write!(
             f,
             "Turn({})",
@@ -134,21 +136,21 @@ macro_rules! turn {
 pub(crate) use turn;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub(crate) enum PositionRef {
+pub enum PositionRef {
     Bar(Player),
     Rail(Player),
     Point(IndexLocation),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct Play {
+pub struct Play {
     pub player: Player,
     pub from: PositionRef,
     pub to: PositionRef,
 }
 
 impl Play {
-    pub fn new(player: Player, from: PositionRef, to: PositionRef) -> Self {
+    pub const fn new(player: Player, from: PositionRef, to: PositionRef) -> Self {
         Self { player, from, to }
     }
 

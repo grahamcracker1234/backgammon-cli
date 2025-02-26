@@ -9,12 +9,12 @@ use crate::backgammon::{
     player::Player,
 };
 
-pub(crate) const BOARD_SIZE: usize = 24;
+pub const BOARD_SIZE: usize = 24;
 
 const HOME_BOARD_INDEX: usize = 5;
 
 #[derive(Debug, Clone)]
-pub(crate) struct Board {
+pub struct Board {
     points: [Position; BOARD_SIZE],
     bar: [Position; 2],
     rail: [Position; 2],
@@ -56,7 +56,7 @@ impl Board {
     }
 
     pub fn new() -> Self {
-        let mut board = Board::empty();
+        let mut board = Self::empty();
 
         // Sets black pieces.
         board.point_mut(23).set(2, Player::Black);
@@ -74,15 +74,15 @@ impl Board {
         board
     }
 
-    pub fn bar(&self, player: Player) -> &Position {
+    pub const fn bar(&self, player: Player) -> &Position {
         &self.bar[player as usize]
     }
 
-    pub fn rail(&self, player: Player) -> &Position {
+    pub const fn rail(&self, player: Player) -> &Position {
         &self.rail[player as usize]
     }
 
-    pub fn point(&self, index: usize) -> &Position {
+    pub const fn point(&self, index: usize) -> &Position {
         &self.points[index]
     }
 
@@ -297,15 +297,15 @@ impl PartialEq for Board {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) struct Position {
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Position {
     pub location: DenormalizedLocation,
     pub count: u8,
     pub player: Player,
 }
 
 impl Position {
-    fn new(location: DenormalizedLocation, count: u8, player: Player) -> Self {
+    const fn new(location: DenormalizedLocation, count: u8, player: Player) -> Self {
         Self {
             location,
             count,
@@ -321,7 +321,7 @@ impl Position {
     //     }
     // }
 
-    pub fn distance(&self, to: &Position) -> usize {
+    pub fn distance(&self, to: &Self) -> usize {
         self.location.abs_diff(*to.location)
     }
 
