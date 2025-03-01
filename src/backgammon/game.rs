@@ -14,7 +14,7 @@ use std::{collections::HashSet, io, io::Write};
 #[derive(Clone)]
 pub struct Game {
     pub(crate) current_player: Player,
-    pub(crate) current_roll: DiceRoll<2>,
+    pub(crate) dice_roll: DiceRoll<2>,
     pub(crate) board: Board,
 }
 
@@ -23,16 +23,16 @@ impl Game {
     pub fn new() -> Self {
         Self {
             current_player: Player::random(),
-            current_roll: DiceRoll::opening(),
+            dice_roll: DiceRoll::opening(),
             board: Board::new(),
         }
     }
 
     #[cfg(test)]
-    const fn from(current_player: Player, current_roll: DiceRoll<2>, board: Board) -> Self {
+    const fn from(current_player: Player, dice_roll: DiceRoll<2>, board: Board) -> Self {
         Self {
             current_player,
-            current_roll,
+            dice_roll,
             board,
         }
     }
@@ -40,7 +40,7 @@ impl Game {
     pub fn start(&mut self) {
         loop {
             let saved_board = self.board.clone();
-            let saved_roll = self.current_roll.clone();
+            let saved_dice_roll = self.dice_roll.clone();
 
             println!("\n{self}\n");
 
@@ -63,7 +63,7 @@ impl Game {
             if let Err(error) = self.check_turn(&turn) {
                 println!("{}", error.to_string().red().bold());
                 self.board = saved_board;
-                self.current_roll = saved_roll;
+                self.dice_roll = saved_dice_roll;
                 continue;
             }
 
@@ -84,7 +84,7 @@ impl Game {
 
     #[allow(unstable_name_collisions)]
     fn get_notation(&self) -> io::Result<Notation> {
-        let prompt = format!("{} to play ({}): ", self.current_player, self.current_roll);
+        let prompt = format!("{} to play ({}): ", self.current_player, self.dice_roll);
         print!("{}", prompt.green().italic());
         io::stdout().flush()?;
 
@@ -103,7 +103,7 @@ impl Game {
             game.make_play(play);
         }
 
-        if game.current_roll.any_available() && !game.get_available_plays().is_empty() {
+        if game.dice_roll.any_available() && !game.get_available_plays().is_empty() {
             return Err(Error::IncompleteTurn);
         }
 
@@ -173,7 +173,7 @@ impl Game {
 
         // Ensure play is possible from the dice rolls.
         let len = to.distance(from).try_into().expect("value was truncated");
-        if !self.current_roll.contains(len) {
+        if !self.dice_roll.contains(len) {
             // Ensure a piece can be borne off with a greater roll than necessary only if there are no pieces behind it.
             let index = from
                 .location
@@ -182,7 +182,7 @@ impl Game {
 
             if !matches!(play.to, PositionRef::Rail(_))
                 || self.board.any_behind(*index, play.player)
-                || len > self.current_roll.max()
+                || len > self.dice_roll.max()
             {
                 return Err(Error::InvalidPlayLength(len));
             }
@@ -200,7 +200,7 @@ impl Game {
         // is removed if a piece was borne off with a greater than necessary roll.
         let len = to.distance(from).try_into().expect("value was truncated");
 
-        if self.current_roll.consume(len).is_err() {
+        if self.dice_roll.consume(len).is_err() {
             // Ensure a piece can be borne off with a greater roll than necessary
             // only if there are no pieces behind it.
 
@@ -213,8 +213,8 @@ impl Game {
 
             assert!(!self.board.any_behind(*index, play.player));
 
-            let max = self.current_roll.max();
-            self.current_roll.consume(max).expect("invalid play length");
+            let max = self.dice_roll.max();
+            self.dice_roll.consume(max).expect("invalid play length");
         }
 
         // If there is a blot where the player is moving to, then remove it and
@@ -246,7 +246,7 @@ impl Game {
     }
 
     fn change_turn(&mut self) {
-        self.current_roll = DiceRoll::new();
+        self.dice_roll = DiceRoll::new();
         self.current_player.switch();
     }
 
@@ -265,7 +265,7 @@ impl Game {
 
         board_iter(&self.board, self.current_player)
             .flat_map(move |board_position| {
-                self.current_roll
+                self.dice_roll
                     .iter()
                     .flat_map(|&roll| {
                         let player = self.current_player;
