@@ -9,31 +9,31 @@ pub const COUNT: usize = 2;
 /// Number of sides on each die
 pub const SIDES: u8 = 6;
 
-/// Represents the dice in a backgammon game
+/// Represents the dice roll in a backgammon game
 ///
-/// Tracks both the actual values rolled and how many times each value can be used,
-/// handling special cases like doubles where values can be used multiple times.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Dice {
-    /// The actual values showing on the dice
-    values: [u8; COUNT],
-    /// Available die values that can be used, including duplicates for multiple uses,
-    /// sorted in ascending order.
+/// Tracks the actual values of the dice and the available moves that can be
+/// made from them.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DiceRoll {
+    /// The actual values of the dice
+    dice: [u8; COUNT],
+    /// Available moves that can be made from the dice, including duplicates for
+    /// multiple uses, sorted in ascending order.
     available: Vec<u8>,
 }
 
 // Constructor functions
 
-impl Default for Dice {
+impl Default for DiceRoll {
     fn default() -> Self {
         let mut rng = rand::rng();
-        let values = [0; COUNT].map(|_| rng.random_range(1..=SIDES));
-        let available = Self::calculate_available(values);
-        Self { values, available }
+        let dice = [0; COUNT].map(|_| rng.random_range(1..=SIDES));
+        let available = Self::calculate_available(dice);
+        Self { dice, available }
     }
 }
 
-impl Dice {
+impl DiceRoll {
     /// Creates a new Dice instance with random values
     pub fn new() -> Self {
         Self::default()
@@ -45,8 +45,7 @@ impl Dice {
     pub fn opening() -> Self {
         loop {
             let roll = Self::new();
-            // All dice values must be different for an opening roll
-            if roll.values.iter().all_unique() {
+            if roll.dice.iter().all_unique() {
                 return roll;
             }
         }
@@ -55,11 +54,14 @@ impl Dice {
     /// Creates a new Dice instance with specific values
     pub fn from(values: [u8; COUNT]) -> Self {
         let available = Self::calculate_available(values);
-        Self { values, available }
+        Self {
+            dice: values,
+            available,
+        }
     }
 }
 
-impl Dice {
+impl DiceRoll {
     /// Calculates the available moves from dice values
     ///
     /// If there are multiple instances of the same die value,
@@ -70,8 +72,8 @@ impl Dice {
             .counts()
             .into_iter()
             .flat_map(|(&die_value, count)| {
-                let multiplier = if count > 1 { 1 << count } else { 1 };
-                vec![die_value; multiplier as usize]
+                let multiplier: usize = if count > 1 { 1 << count } else { 1 };
+                vec![die_value; multiplier]
             })
             .sorted()
             .collect()
@@ -103,16 +105,15 @@ impl Dice {
     }
 }
 
-// Iterating
+// Iterating: `iter` and `into_iter`
 
-impl Dice {
-    // Method to get an iterator reference
+impl DiceRoll {
     pub fn iter(&self) -> std::slice::Iter<u8> {
         self.available.iter()
     }
 }
 
-impl IntoIterator for Dice {
+impl IntoIterator for DiceRoll {
     type Item = u8;
     type IntoIter = std::vec::IntoIter<u8>;
 
@@ -121,8 +122,7 @@ impl IntoIterator for Dice {
     }
 }
 
-// Implement IntoIterator for &Foo to support for-loops
-impl<'a> IntoIterator for &'a Dice {
+impl<'a> IntoIterator for &'a DiceRoll {
     type Item = &'a u8;
     type IntoIter = std::slice::Iter<'a, u8>;
 
@@ -136,13 +136,13 @@ impl<'a> IntoIterator for &'a Dice {
 /// # Format options
 /// - Default format (`{}`) shows numeric values: "4-6"
 /// - Alternate format (`{:#}`) shows Unicode dice: "⚃-⚅"
-impl fmt::Display for Dice {
+impl fmt::Display for DiceRoll {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Define dice faces as a const array for better performance
         const DICE_FACES: [&str; SIDES as usize + 1] = ["\0", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
 
         let formatted: String = self
-            .values
+            .dice
             .iter()
             .map(|&die| {
                 if f.alternate() {
@@ -163,22 +163,22 @@ mod tests {
 
     #[test]
     fn test_dice_from() {
-        let dice = Dice::from([3, 5]);
-        assert_eq!(dice.values, [3, 5]);
+        let dice = DiceRoll::from([3, 5]);
+        assert_eq!(dice.dice, [3, 5]);
         assert_eq!(dice.available, vec![3, 5]);
     }
 
     #[test]
     fn test_dice_doubles() {
-        let dice = Dice::from([4, 4]);
-        assert_eq!(dice.values, [4, 4]);
+        let dice = DiceRoll::from([4, 4]);
+        assert_eq!(dice.dice, [4, 4]);
         // For doubles, we get 4 available uses of the die value
         assert_eq!(dice.available, vec![4, 4, 4, 4]);
     }
 
     #[test]
     fn test_remove_die() {
-        let mut dice = Dice::from([2, 5]);
+        let mut dice = DiceRoll::from([2, 5]);
         assert!(dice.contains(2));
         assert!(dice.consume(2).is_ok());
         assert!(!dice.contains(2));
@@ -187,20 +187,20 @@ mod tests {
 
     #[test]
     fn test_remove_unavailable_die() {
-        let mut dice = Dice::from([2, 5]);
+        let mut dice = DiceRoll::from([2, 5]);
         assert!(dice.consume(3).is_err());
     }
 
     #[test]
     fn test_max() {
-        let dice = Dice::from([2, 5]);
+        let dice = DiceRoll::from([2, 5]);
         assert_eq!(dice.max(), 5);
 
-        let mut dice = Dice::from([2, 5]);
+        let mut dice = DiceRoll::from([2, 5]);
         assert!(dice.consume(5).is_ok());
         assert_eq!(dice.max(), 2);
 
-        let mut empty_dice = Dice::from([2, 5]);
+        let mut empty_dice = DiceRoll::from([2, 5]);
         assert!(empty_dice.consume(2).is_ok());
         assert!(empty_dice.consume(5).is_ok());
         assert_eq!(empty_dice.max(), 0);
@@ -208,10 +208,10 @@ mod tests {
 
     #[test]
     fn test_any_available() {
-        let dice = Dice::from([2, 5]);
+        let dice = DiceRoll::from([2, 5]);
         assert!(dice.any_available());
 
-        let mut empty_dice = Dice::from([2, 5]);
+        let mut empty_dice = DiceRoll::from([2, 5]);
         assert!(empty_dice.consume(2).is_ok());
         assert!(empty_dice.consume(5).is_ok());
         assert!(!empty_dice.any_available());
@@ -219,16 +219,16 @@ mod tests {
 
     #[test]
     fn test_available_rolls() {
-        let dice = Dice::from([2, 5]);
+        let dice = DiceRoll::from([2, 5]);
         assert_eq!(dice.available, vec![2, 5]);
 
-        let dice_doubles = Dice::from([3, 3]);
+        let dice_doubles = DiceRoll::from([3, 3]);
         assert_eq!(dice_doubles.available, vec![3, 3, 3, 3]);
     }
 
     #[test]
     fn test_display() {
-        let dice = Dice::from([2, 5]);
+        let dice = DiceRoll::from([2, 5]);
         assert_eq!(format!("{}", dice), "2-5");
         assert_eq!(format!("{:#}", dice), "⚁-⚄");
     }

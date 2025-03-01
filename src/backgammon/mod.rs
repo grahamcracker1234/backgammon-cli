@@ -1,5 +1,5 @@
 mod board;
-mod dice;
+mod dice_roll;
 mod game;
 mod location;
 mod notation;
@@ -58,7 +58,7 @@ pub enum Error {
     InvalidBearOff,
 
     #[error(
-        "a turn must use as many moves as possible preferring larger moves if not all can be used"
+        "a turn must use as many moves as possible, preferring larger moves if not all can be used"
     )]
     NonMaximalTurn,
 }

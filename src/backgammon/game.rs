@@ -1,12 +1,12 @@
 use colored::Colorize;
 
 use crate::backgammon::{
-    board::{Board, BOARD_SIZE},
-    dice::Dice,
+    Error,
+    board::{BOARD_SIZE, Board},
+    dice_roll::DiceRoll,
     location::{Index, Normalized},
     notation::{Notation, Play, PositionRef, Turn},
     player::Player,
-    Error,
 };
 
 use std::{collections::HashSet, io, io::Write};
@@ -14,7 +14,7 @@ use std::{collections::HashSet, io, io::Write};
 #[derive(Clone)]
 pub struct Game {
     pub(crate) current_player: Player,
-    pub(crate) current_roll: Dice,
+    pub(crate) current_roll: DiceRoll,
     pub(crate) board: Board,
 }
 
@@ -23,13 +23,13 @@ impl Game {
     pub fn new() -> Self {
         Self {
             current_player: Player::random(),
-            current_roll: Dice::opening(),
+            current_roll: DiceRoll::opening(),
             board: Board::new(),
         }
     }
 
     #[cfg(test)]
-    const fn from(current_player: Player, current_roll: Dice, board: Board) -> Self {
+    const fn from(current_player: Player, current_roll: DiceRoll, board: Board) -> Self {
         Self {
             current_player,
             current_roll,
@@ -246,7 +246,7 @@ impl Game {
     }
 
     fn change_turn(&mut self) {
-        self.current_roll = Dice::new();
+        self.current_roll = DiceRoll::new();
         self.current_player.switch();
     }
 
@@ -360,7 +360,7 @@ mod test {
         let mut board = Board::empty();
         board.point_mut(10).set(5, player);
 
-        let mut game = Game::from(player, Dice::from([3, 5]), board);
+        let mut game = Game::from(player, DiceRoll::from([3, 5]), board);
         let turn = turn!(player, (10, 7), (10, 5));
 
         println!("{game}");
@@ -388,7 +388,7 @@ mod test {
         board.point_mut(20).set(3, player);
         board.point_mut(4).set(3, player);
 
-        let mut game = Game::from(player, Dice::from([2, 6]), board);
+        let mut game = Game::from(player, DiceRoll::from([2, 6]), board);
         let turn = turn!(player, (10, 4), (20, 18));
 
         println!("{game}");
@@ -415,7 +415,7 @@ mod test {
         let mut board = Board::empty();
         board.point_mut(15).set(7, player);
 
-        let mut game = Game::from(player, Dice::from([1, 3]), board);
+        let mut game = Game::from(player, DiceRoll::from([1, 3]), board);
         let turn = turn!(player, (15, 12), (12, 11));
 
         println!("{game}");
@@ -441,7 +441,7 @@ mod test {
         board.bar_mut(player).set(1, player);
         board.point_mut(7).set(2, player);
 
-        let mut game = Game::from(player, Dice::from([4, 6]), board);
+        let mut game = Game::from(player, DiceRoll::from([4, 6]), board);
         let turn = turn!(player, (bar, 18), (7, 3));
 
         println!("{game}");
@@ -469,7 +469,7 @@ mod test {
         board.point_mut(23).set(2, player);
         board.point_mut(4).set(8, player);
 
-        let mut game = Game::from(player, Dice::from([1, 2]), board);
+        let mut game = Game::from(player, DiceRoll::from([1, 2]), board);
         let turn = turn!(player, (bar, 23), (bar, 22));
 
         println!("{game}");
@@ -496,7 +496,7 @@ mod test {
         board.point_mut(17).set(2, player);
         board.point_mut(5).set(8, player);
 
-        let mut game = Game::from(player, Dice::from([3, 3]), board);
+        let mut game = Game::from(player, DiceRoll::from([3, 3]), board);
         let turn = turn!(player, (17, 14), (17, 14), (14, 11), (5, 2));
 
         println!("{game}");
@@ -523,7 +523,7 @@ mod test {
         let mut board = Board::empty();
         board.point_mut(11).set(5, player);
 
-        let mut game = Game::from(player, Dice::from([2, 3]), board);
+        let mut game = Game::from(player, DiceRoll::from([2, 3]), board);
         let turn = turn!(player, (11, 13), (11, 14));
 
         println!("{game}");
@@ -551,7 +551,7 @@ mod test {
         board.point_mut(0).set(3, player);
         board.point_mut(5).set(3, player);
 
-        let mut game = Game::from(player, Dice::from([3, 5]), board);
+        let mut game = Game::from(player, DiceRoll::from([3, 5]), board);
         let turn = turn!(player, (20, 23), (0, 5));
 
         println!("{game}");
@@ -578,7 +578,7 @@ mod test {
         let mut board = Board::empty();
         board.point_mut(14).set(4, player);
 
-        let mut game = Game::from(player, Dice::from([1, 3]), board);
+        let mut game = Game::from(player, DiceRoll::from([1, 3]), board);
         let turn = turn!(player, (14, 15), (15, 18));
 
         println!("{game}");
@@ -604,7 +604,7 @@ mod test {
         board.bar_mut(player).set(1, player);
         board.point_mut(17).set(2, player);
 
-        let mut game = Game::from(player, Dice::from([6, 4]), board);
+        let mut game = Game::from(player, DiceRoll::from([6, 4]), board);
         let turn = turn!(player, (bar, 5), (17, 21));
 
         println!("{game}");
@@ -632,7 +632,7 @@ mod test {
         board.point_mut(23).set(2, player);
         board.point_mut(3).set(8, player);
 
-        let mut game = Game::from(player, Dice::from([4, 1]), board);
+        let mut game = Game::from(player, DiceRoll::from([4, 1]), board);
         let turn = turn!(player, (bar, 3), (bar, 0));
 
         println!("{game}");
@@ -660,7 +660,7 @@ mod test {
         board.point_mut(15).set(3, player);
         board.point_mut(17).set(3, player);
 
-        let mut game = Game::from(player, Dice::from([4, 4]), board);
+        let mut game = Game::from(player, DiceRoll::from([4, 4]), board);
         let turn = turn!(player, (7, 11), (7, 11), (11, 15), (17, 21));
 
         println!("{game}");
@@ -699,7 +699,7 @@ mod test {
         board.point_mut(12).set(4, !player);
         board.point_mut(21).set(1, !player);
         board.point_mut(23).set(1, !player);
-        let mut game = Game::from(player, Dice::from([3, 2]), board);
+        let mut game = Game::from(player, DiceRoll::from([3, 2]), board);
         let turn = turn!(player, (0, 2), (0, 3));
 
         println!("{game}");
@@ -736,7 +736,7 @@ mod test {
         let mut board = Board::empty();
         board.point_mut(4).set(3, player);
 
-        let mut game = Game::from(player, Dice::from([5, 4]), board);
+        let mut game = Game::from(player, DiceRoll::from([5, 4]), board);
         let turn = turn!(player, (4, off), (4, 0));
 
         println!("{game}");
@@ -763,7 +763,7 @@ mod test {
         board.point_mut(21).set(3, player);
         board.point_mut(22).set(3, player);
 
-        let mut game = Game::from(player, Dice::from([2, 3]), board);
+        let mut game = Game::from(player, DiceRoll::from([2, 3]), board);
         let turn = turn!(player, (21, off), (22, off));
 
         println!("{game}");
@@ -789,7 +789,7 @@ mod test {
         let mut board = Board::empty();
         board.point_mut(19).set(3, player);
 
-        let mut game = Game::from(player, Dice::from([6, 5]), board);
+        let mut game = Game::from(player, DiceRoll::from([6, 5]), board);
         let turn = turn!(player, (19, off), (19, off));
 
         println!("{game}");
@@ -816,7 +816,7 @@ mod test {
         board.point_mut(11).set(2, Player::White);
         board.point_mut(13).set(2, player);
 
-        let game = Game::from(player, Dice::from([2, 3]), board);
+        let game = Game::from(player, DiceRoll::from([2, 3]), board);
         let turn = turn!(player);
 
         println!("{game}");
@@ -833,7 +833,7 @@ mod test {
         board.point_mut(20).set(2, Player::White);
         board.point_mut(13).set(1, player);
 
-        let game = Game::from(player, Dice::from([1, 4]), board);
+        let game = Game::from(player, DiceRoll::from([1, 4]), board);
         let turn = turn!(player);
 
         println!("{game}");
@@ -847,7 +847,7 @@ mod test {
         let mut board = Board::empty();
         board.point_mut(10).set(2, player);
 
-        let game = Game::from(player, Dice::from([1, 2]), board);
+        let game = Game::from(player, DiceRoll::from([1, 2]), board);
         let turn = turn!(player, (10, 9), (10, 7));
 
         println!("{game}");
@@ -863,7 +863,7 @@ mod test {
         board.point_mut(4).set(2, player);
         board.point_mut(3).set(1, player);
 
-        let game = Game::from(player, Dice::from([3, 6]), board);
+        let game = Game::from(player, DiceRoll::from([3, 6]), board);
         let turn = turn!(player, (4, off), (3, off));
 
         println!("{game}");
@@ -877,7 +877,7 @@ mod test {
         let mut board = Board::empty();
         board.point_mut(10).set(2, player);
 
-        let game = Game::from(player, Dice::from([1, 2]), board);
+        let game = Game::from(player, DiceRoll::from([1, 2]), board);
         let turn = turn!(player, (10, 9));
 
         println!("{game}");
@@ -891,7 +891,7 @@ mod test {
         let mut board = Board::empty();
         board.point_mut(10).set(2, player);
 
-        let game = Game::from(Player::White, Dice::from([1, 2]), board);
+        let game = Game::from(Player::White, DiceRoll::from([1, 2]), board);
         let turn = turn!(player, (10, 9), (10, 8));
 
         println!("{game}");
@@ -906,7 +906,7 @@ mod test {
         board.bar_mut(player).set(1, player);
         board.point_mut(10).set(2, player);
 
-        let game = Game::from(player, Dice::from([1, 2]), board);
+        let game = Game::from(player, DiceRoll::from([1, 2]), board);
         let turn = turn!(player, (10, 9), (10, 8));
 
         println!("{game}");
@@ -920,7 +920,7 @@ mod test {
         let mut board = Board::empty();
         board.point_mut(23).set(2, player);
 
-        let game = Game::from(player, Dice::from([1, 2]), board);
+        let game = Game::from(player, DiceRoll::from([1, 2]), board);
         let turn = turn!(player, (23, bar), (23, 21));
 
         println!("{game}");
@@ -935,7 +935,7 @@ mod test {
         board.rail_mut(player).set(1, player);
         board.point_mut(23).set(2, player);
 
-        let game = Game::from(player, Dice::from([1, 2]), board);
+        let game = Game::from(player, DiceRoll::from([1, 2]), board);
         let turn = turn!(player, (off, 0), (23, 21));
 
         println!("{game}");
@@ -948,7 +948,7 @@ mod test {
         let player = Player::Black;
         let board = Board::empty();
 
-        let game = Game::from(player, Dice::from([1, 2]), board);
+        let game = Game::from(player, DiceRoll::from([1, 2]), board);
         let turn = turn!(player, (23, 21));
 
         println!("{game}");
@@ -962,7 +962,7 @@ mod test {
         let mut board = Board::empty();
         board.point_mut(23).set(2, Player::White);
 
-        let game = Game::from(player, Dice::from([1, 2]), board);
+        let game = Game::from(player, DiceRoll::from([1, 2]), board);
         let turn = turn!(player, (23, 22), (23, 21));
 
         println!("{game}");
@@ -979,7 +979,7 @@ mod test {
         let mut board = Board::empty();
         board.point_mut(10).set(2, player);
 
-        let game = Game::from(player, Dice::from([1, 2]), board);
+        let game = Game::from(player, DiceRoll::from([1, 2]), board);
         let turn = turn!(player, (10, 11), (10, 12));
 
         println!("{game}");
@@ -994,7 +994,7 @@ mod test {
         board.point_mut(10).set(2, player);
         board.point_mut(8).set(2, Player::White);
 
-        let game = Game::from(player, Dice::from([1, 2]), board);
+        let game = Game::from(player, DiceRoll::from([1, 2]), board);
         let turn = turn!(player, (10, 9), (10, 8));
 
         println!("{game}");
@@ -1012,7 +1012,7 @@ mod test {
         board.point_mut(6).set(1, player);
         board.point_mut(3).set(2, player);
 
-        let game = Game::from(player, Dice::from([1, 3]), board);
+        let game = Game::from(player, DiceRoll::from([1, 3]), board);
         let turn = turn!(player, (3, 0), (0, off));
 
         println!("{game}");
@@ -1046,7 +1046,7 @@ mod test {
         board.point_mut(22).set(2, !player);
         board.point_mut(23).set(2, !player);
 
-        let game = Game::from(player, Dice::from([3, 5]), board);
+        let game = Game::from(player, DiceRoll::from([3, 5]), board);
         let turn = turn!(player, (3, 8));
 
         println!("{game}");
@@ -1057,7 +1057,7 @@ mod test {
     fn get_available_plays_1() {
         let player = Player::Black;
         let board = Board::new();
-        let game = Game::from(player, Dice::from([2, 5]), board);
+        let game = Game::from(player, DiceRoll::from([2, 5]), board);
         let plays = plays!(player, (5, 3), (7, 2), (7, 5), (12, 7), (12, 10), (23, 21));
 
         println!("{game}");
@@ -1071,7 +1071,7 @@ mod test {
         board.bar_mut(player).set(1, player);
         board.point_mut(10).set(3, player);
 
-        let game = Game::from(player, Dice::from([4, 6]), board);
+        let game = Game::from(player, DiceRoll::from([4, 6]), board);
         let plays = plays!(player, (bar, 20), (bar, 18));
 
         println!("{game}");
@@ -1085,7 +1085,7 @@ mod test {
         board.bar_mut(player).set(1, player);
         board.point_mut(10).set(3, player);
 
-        let game = Game::from(player, Dice::from([4, 6]), board);
+        let game = Game::from(player, DiceRoll::from([4, 6]), board);
         let plays = plays!(player, (bar, 3), (bar, 5));
 
         println!("{game}");
@@ -1099,7 +1099,7 @@ mod test {
         board.point_mut(10).set(1, player);
         board.point_mut(23).set(3, player);
 
-        let game = Game::from(player, Dice::from([1, 4]), board);
+        let game = Game::from(player, DiceRoll::from([1, 4]), board);
         let plays = plays!(player, (10, 14), (10, 11));
 
         println!("{game}");
@@ -1114,7 +1114,7 @@ mod test {
         board.point_mut(23).set(3, player);
         board.point_mut(11).set(2, !player);
 
-        let game = Game::from(player, Dice::from([1, 4]), board);
+        let game = Game::from(player, DiceRoll::from([1, 4]), board);
         let plays = plays!(player, (10, 14));
 
         println!("{game}");
@@ -1133,7 +1133,7 @@ mod test {
         board.point_mut(19).set(2, !player);
         board.point_mut(18).set(2, !player);
 
-        let game = Game::from(player, Dice::from([6, 6]), board);
+        let game = Game::from(player, DiceRoll::from([6, 6]), board);
         let plays = plays!(player);
 
         println!("{game}");
@@ -1146,7 +1146,7 @@ mod test {
         let mut board = Board::empty();
         board.point_mut(4).set(3, player);
 
-        let game = Game::from(player, Dice::from([5, 4]), board);
+        let game = Game::from(player, DiceRoll::from([5, 4]), board);
         let plays = plays!(player, (4, off), (4, 0));
 
         println!("{game}");
@@ -1157,7 +1157,7 @@ mod test {
     fn get_available_turns_1() {
         let player = Player::Black;
         let board = Board::new();
-        let game = Game::from(player, Dice::from([2, 5]), board);
+        let game = Game::from(player, DiceRoll::from([2, 5]), board);
         let turns = HashSet::from([
             turn!(player, (5, 3), (7, 2)),
             turn!(player, (5, 3), (12, 7)),
@@ -1195,7 +1195,7 @@ mod test {
         board.point_mut(19).set(2, !player);
         board.point_mut(18).set(2, !player);
 
-        let game = Game::from(player, Dice::from([6, 6]), board);
+        let game = Game::from(player, DiceRoll::from([6, 6]), board);
         let turns = HashSet::from([turn!(player)]);
 
         println!("{game}");
@@ -1228,7 +1228,7 @@ mod test {
         board.point_mut(22).set(2, !player);
         board.point_mut(23).set(2, !player);
 
-        let game = Game::from(player, Dice::from([3, 5]), board);
+        let game = Game::from(player, DiceRoll::from([3, 5]), board);
         let turns = HashSet::from([turn!(player, (10, 15), (15, 18))]);
 
         println!("{game}");
