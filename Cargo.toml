@@ -22,3 +22,5 @@ thiserror = "2.0.11"
 pedantic = "warn"
 nursery = "warn"
 cargo = "warn"
+
+multiple_crate_versions = { level = "allow", priority = 1 }
