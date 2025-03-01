@@ -300,19 +300,18 @@ impl Game {
     }
 
     fn get_available_turns(&self) -> HashSet<Turn> {
-        fn _get_available_turns(game: &Game) -> Vec<Vec<Play>> {
+        fn get_turns_recursive(game: &Game) -> Vec<Vec<Play>> {
             let plays = game.get_available_plays();
             if plays.is_empty() {
                 return vec![vec![]];
             }
 
-            // .filter(|play| game.check_play(play).is_ok())
             plays
                 .into_iter()
                 .flat_map(|play| {
                     let mut game = game.clone();
                     game.make_play(&play);
-                    let plays: Vec<Vec<Play>> = _get_available_turns(&game)
+                    let plays: Vec<Vec<Play>> = get_turns_recursive(&game)
                         .into_iter()
                         .map(|mut next_plays| {
                             next_plays.splice(0..0, [play.clone()]);
@@ -323,7 +322,7 @@ impl Game {
                 })
                 .collect()
         }
-        let turns: HashSet<Turn> = _get_available_turns(&self.clone())
+        let turns: HashSet<Turn> = get_turns_recursive(&self.clone())
             .into_iter()
             .map(Turn)
             .collect();
