@@ -12,11 +12,11 @@ categories = ["games", "command-line-utilities"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-colored = "2.0.0"
-itertools = "0.10.5"
-rand = "0.8.5"
-regex = "1.7.0"
-thiserror = "1.0.50"
+colored = "3.0.0"
+itertools = "0.14.0"
+rand = "0.9.0"
+regex = "1.11.1"
+thiserror = "2.0.11"
 
 [lints.clippy]
 pedantic = "warn"

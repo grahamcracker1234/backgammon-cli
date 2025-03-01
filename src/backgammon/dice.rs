@@ -38,9 +38,9 @@ impl Dice {
     }
 
     pub fn roll() -> Self {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let dice = (0..COUNT)
-            .map(|_| rng.gen_range(1..=SIDES))
+            .map(|_| rng.random_range(1..=SIDES))
             .collect::<Vec<_>>()
             .try_into()
             .unwrap();
