@@ -1,57 +1,76 @@
-# Backgammon CLI
+# 🎲 Backgammon CLI
 
-A command-line interface implementation of the classic board game Backgammon, featuring a text-based UI with colored output.
+A command-line interface implementation of the classic board game [Backgammon](https://en.wikipedia.org/wiki/Backgammon), featuring a text-based UI with colored output.
 
-## Features
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
-- Text-based board visualization with colored pieces
-- Standard backgammon rules implementation
-- Support for dice rolling and doubles
-- Move validation
-- Bar and bearing off mechanics
-- Backgammon notation support
-- Player turn management
+## 📋 Table of Contents
 
-## Installation
+- [Features](#-features)
+- [Installation](#-installation)
+- [Usage](#-usage)
+  - [Game Controls](#-game-controls)
+- [Development](#-development)
+- [Contributing](#-contributing)
+- [License](#-license)
 
-To install the game, you'll need Rust and Cargo installed on your system. Then:
+## ✨ Features
 
-```bash
+- 🎮 Text-based board visualization with colored pieces
+- 📏 Standard backgammon rules implementation
+- 🎲 Support for dice rolling and doubles
+- ✅ Move validation
+- 🚫 Bar and bearing off mechanics
+- 📝 Backgammon notation support
+- 👥 Player turn management
+
+## 🚀 Installation
+
+To install the game, you'll need Rust and Cargo installed on your system.
+
+```sh
 # Clone the repository
-git clone https://github.com/grahampreston/backgammon-cli
+git clone https://github.com/grahamcracker1234/backgammon-cli.git
 cd backgammon-cli
 
 # Build and install
 cargo install --path .
 ```
 
-## Usage
+## 🎮 Usage
 
-To start a new game:
+To start a new local 2-player game:
 
-```bash
+```sh
 backgammon-cli
 ```
 
-### Game Controls
+> **Note:** There is not yet support for CPU opponents or online play.
 
-The game uses standard backgammon notation for moves. For example:
+### 🎯 Game Controls
 
-- `1/2` moves a piece from point 1 to point 2
-- `bar/1` moves a piece from the bar to point 1
-- `20/off` bears off a piece from point 20
-- Multiple moves can be combined with spaces: `1/2 2/3`
+The game uses [standard backgammon notation](https://en.wikipedia.org/wiki/Backgammon_notation) for moves:
 
-## Development
+| Notation | Description |
+|----------|-------------|
+| `1/2`    | Moves a piece from point 1 to point 2 |
+| `bar/1`  | Moves a piece from the bar to point 1 |
+| `20/off` | Bears off a piece from point 20 |
+| `8/3/1`  | Multiple moves with the same piece (chained) |
+| `1/2 5/9`| Multiple separate moves (combined with spaces) |
 
-To run tests:
+## 👨‍💻 Development
 
-```bash
-cargo test
+```sh
+cargo run     # Run the game
+cargo test    # Run the tests
+cargo clippy  # Check code style and run lints
 ```
 
-To check code style and run lints:
+## 📚 Contributing
 
-```bash
-cargo clippy
-```
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
