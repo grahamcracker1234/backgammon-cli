@@ -4,8 +4,6 @@ use std::fmt;
 
 use crate::backgammon::Error;
 
-/// Number of dice used in the game
-pub const COUNT: usize = 2;
 /// Number of sides on each die
 pub const SIDES: u8 = 6;
 
@@ -14,9 +12,9 @@ pub const SIDES: u8 = 6;
 /// Tracks the actual values of the dice and the available moves that can be
 /// made from them.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct DiceRoll {
+pub struct DiceRoll<const N: usize> {
     /// The actual values of the dice
-    dice: [u8; COUNT],
+    dice: [u8; N],
     /// Available moves that can be made from the dice, including duplicates for
     /// multiple uses, sorted in ascending order.
     available: Vec<u8>,
@@ -24,16 +22,16 @@ pub struct DiceRoll {
 
 // Constructor functions
 
-impl Default for DiceRoll {
+impl<const N: usize> Default for DiceRoll<N> {
     fn default() -> Self {
         let mut rng = rand::rng();
-        let dice = [0; COUNT].map(|_| rng.random_range(1..=SIDES));
+        let dice = [0; N].map(|_| rng.random_range(1..=SIDES));
         let available = Self::calculate_available(dice);
         Self { dice, available }
     }
 }
 
-impl DiceRoll {
+impl<const N: usize> DiceRoll<N> {
     /// Creates a new Dice instance with random values
     pub fn new() -> Self {
         Self::default()
@@ -52,7 +50,7 @@ impl DiceRoll {
     }
 
     /// Creates a new Dice instance with specific values
-    pub fn from(values: [u8; COUNT]) -> Self {
+    pub fn from(values: [u8; N]) -> Self {
         let available = Self::calculate_available(values);
         Self {
             dice: values,
@@ -61,12 +59,12 @@ impl DiceRoll {
     }
 }
 
-impl DiceRoll {
+impl<const N: usize> DiceRoll<N> {
     /// Calculates the available moves from dice values
     ///
     /// If there are multiple instances of the same die value,
     /// each die can be used 2^count times.
-    fn calculate_available(values: [u8; COUNT]) -> Vec<u8> {
+    fn calculate_available(values: [u8; N]) -> Vec<u8> {
         values
             .iter()
             .counts()
@@ -107,13 +105,13 @@ impl DiceRoll {
 
 // Iterating: `iter` and `into_iter`
 
-impl DiceRoll {
+impl<const N: usize> DiceRoll<N> {
     pub fn iter(&self) -> std::slice::Iter<u8> {
         self.available.iter()
     }
 }
 
-impl IntoIterator for DiceRoll {
+impl<const N: usize> IntoIterator for DiceRoll<N> {
     type Item = u8;
     type IntoIter = std::vec::IntoIter<u8>;
 
@@ -122,7 +120,7 @@ impl IntoIterator for DiceRoll {
     }
 }
 
-impl<'a> IntoIterator for &'a DiceRoll {
+impl<'a, const N: usize> IntoIterator for &'a DiceRoll<N> {
     type Item = &'a u8;
     type IntoIter = std::slice::Iter<'a, u8>;
 
@@ -136,7 +134,7 @@ impl<'a> IntoIterator for &'a DiceRoll {
 /// # Format options
 /// - Default format (`{}`) shows numeric values: "4-6"
 /// - Alternate format (`{:#}`) shows Unicode dice: "⚃-⚅"
-impl fmt::Display for DiceRoll {
+impl<const N: usize> fmt::Display for DiceRoll<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Define dice faces as a const array for better performance
         const DICE_FACES: [&str; SIDES as usize + 1] = ["\0", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];

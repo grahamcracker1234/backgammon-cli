@@ -14,7 +14,7 @@ use std::{collections::HashSet, io, io::Write};
 #[derive(Clone)]
 pub struct Game {
     pub(crate) current_player: Player,
-    pub(crate) current_roll: DiceRoll,
+    pub(crate) current_roll: DiceRoll<2>,
     pub(crate) board: Board,
 }
 
@@ -29,7 +29,7 @@ impl Game {
     }
 
     #[cfg(test)]
-    const fn from(current_player: Player, current_roll: DiceRoll, board: Board) -> Self {
+    const fn from(current_player: Player, current_roll: DiceRoll<2>, board: Board) -> Self {
         Self {
             current_player,
             current_roll,
