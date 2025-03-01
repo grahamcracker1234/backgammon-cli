@@ -1,117 +1,235 @@
 use itertools::Itertools;
 use rand::Rng;
-use std::collections::HashMap;
 use std::fmt;
 
 use crate::backgammon::Error;
 
-const COUNT: usize = 2;
-const SIDES: u8 = 6;
+/// Number of dice used in the game
+pub const COUNT: usize = 2;
+/// Number of sides on each die
+pub const SIDES: u8 = 6;
 
-#[derive(Clone)]
+/// Represents the dice in a backgammon game
+///
+/// Tracks both the actual values rolled and how many times each value can be used,
+/// handling special cases like doubles where values can be used multiple times.
+#[derive(Clone, Debug, PartialEq)]
 pub struct Dice {
-    dice: [u8; COUNT],
-    cast_freq: HashMap<u8, u8>,
+    /// The actual values showing on the dice
+    values: [u8; COUNT],
+    /// Available die values that can be used, including duplicates for multiple uses,
+    /// sorted in ascending order.
+    available: Vec<u8>,
+}
+
+// Constructor functions
+
+impl Default for Dice {
+    fn default() -> Self {
+        let mut rng = rand::rng();
+        let values = [0; COUNT].map(|_| rng.random_range(1..=SIDES));
+        let available = Self::calculate_available(values);
+        Self { values, available }
+    }
 }
 
 impl Dice {
-    #[allow(dead_code)]
-    pub fn from(dice: [u8; COUNT]) -> Self {
-        let cast_freq = Self::cast_freq(dice);
-        Self { dice, cast_freq }
+    /// Creates a new Dice instance with random values
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    fn cast_freq(dice: [u8; COUNT]) -> HashMap<u8, u8> {
-        let mut cast_freq = HashMap::new();
-
-        for die in dice {
-            *cast_freq.entry(die).or_insert(0) += 1;
-        }
-
-        for die in cast_freq.values_mut() {
-            if *die > 1 {
-                *die = 1 << *die;
-            }
-        }
-
-        cast_freq
-    }
-
-    pub fn roll() -> Self {
-        let mut rng = rand::rng();
-        let dice = (0..COUNT)
-            .map(|_| rng.random_range(1..=SIDES))
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap();
-
-        let cast_freq = Self::cast_freq(dice);
-        Self { dice, cast_freq }
-    }
-
-    pub fn check(&self, cast: u8) -> bool {
-        matches!(self.cast_freq.get(&cast), Some(&count) if count > 0)
-    }
-
-    pub fn remove(&mut self, cast: u8) {
-        match self.cast_freq.get_mut(&cast) {
-            Some(count) if *count > 0 => *count -= 1,
-            _ => panic!("{}", Error::InvalidPlayLength(cast)),
-        }
-    }
-
-    pub fn available_rolls(&self) -> impl Iterator<Item = u8> + '_ {
-        self.cast_freq
-            .iter()
-            .flat_map(|(&k, &v)| vec![k; v as usize].into_iter())
-    }
-
-    pub fn any_available(&self) -> bool {
-        self.cast_freq.values().any(|&count| count > 0)
-    }
-
-    pub fn reroll(&mut self) {
-        *self = Self::roll();
-    }
-
-    pub fn first_roll() -> Self {
+    /// Generates a roll where all dice show different values
+    ///
+    /// Used for the opening roll of the game where doubles are not allowed
+    pub fn opening() -> Self {
         loop {
-            let roll = Self::roll();
-            if roll.cast_freq.values().all(|&count| count == 1) {
+            let roll = Self::new();
+            // All dice values must be different for an opening roll
+            if roll.values.iter().all_unique() {
                 return roll;
             }
         }
     }
 
-    pub fn max(&self) -> u8 {
-        self.available_rolls().max().unwrap()
+    /// Creates a new Dice instance with specific values
+    pub fn from(values: [u8; COUNT]) -> Self {
+        let available = Self::calculate_available(values);
+        Self { values, available }
     }
 }
 
-#[allow(unstable_name_collisions)]
+impl Dice {
+    /// Calculates the available moves from dice values
+    ///
+    /// If there are multiple instances of the same die value,
+    /// each die can be used 2^count times.
+    fn calculate_available(values: [u8; COUNT]) -> Vec<u8> {
+        values
+            .iter()
+            .counts()
+            .into_iter()
+            .flat_map(|(&die_value, count)| {
+                let multiplier = if count > 1 { 1 << count } else { 1 };
+                vec![die_value; multiplier as usize]
+            })
+            .sorted()
+            .collect()
+    }
+
+    /// Checks if any die values are still available to be used
+    pub fn any_available(&self) -> bool {
+        !self.available.is_empty()
+    }
+
+    /// Checks if a specific die value is still available to be used
+    pub fn contains(&self, value: u8) -> bool {
+        self.available.contains(&value)
+    }
+
+    /// Consumes one usage of a specific die value
+    pub fn consume(&mut self, value: u8) -> Result<(), Error> {
+        if let Some(index) = self.available.iter().position(|&d| d == value) {
+            self.available.remove(index);
+            Ok(())
+        } else {
+            Err(Error::InvalidPlayLength(value))
+        }
+    }
+
+    /// Returns the highest available die value
+    pub fn max(&self) -> u8 {
+        self.available.iter().max().copied().unwrap_or(0)
+    }
+}
+
+// Iterating
+
+impl Dice {
+    // Method to get an iterator reference
+    pub fn iter(&self) -> std::slice::Iter<u8> {
+        self.available.iter()
+    }
+}
+
+impl IntoIterator for Dice {
+    type Item = u8;
+    type IntoIter = std::vec::IntoIter<u8>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.available.into_iter()
+    }
+}
+
+// Implement IntoIterator for &Foo to support for-loops
+impl<'a> IntoIterator for &'a Dice {
+    type Item = &'a u8;
+    type IntoIter = std::slice::Iter<'a, u8>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+/// Implements string formatting for Dice
+///
+/// # Format options
+/// - Default format (`{}`) shows numeric values: "4-6"
+/// - Alternate format (`{:#}`) shows Unicode dice: "⚃-⚅"
 impl fmt::Display for Dice {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut special_char = HashMap::new();
-        special_char.insert(1, "\u{2680}");
-        special_char.insert(2, "\u{2681}");
-        special_char.insert(3, "\u{2682}");
-        special_char.insert(4, "\u{2683}");
-        special_char.insert(5, "\u{2684}");
-        special_char.insert(6, "\u{2685}");
+        // Define dice faces as a const array for better performance
+        const DICE_FACES: [&str; SIDES as usize + 1] = ["\0", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
 
-        let display: String = self
-            .dice
+        let formatted: String = self
+            .values
             .iter()
-            .map(|die| {
+            .map(|&die| {
                 if f.alternate() {
-                    (*special_char.get(die).unwrap_or(&"\u{1F3B2}")).to_string()
+                    DICE_FACES[die as usize].to_string()
                 } else {
                     die.to_string()
                 }
             })
-            .intersperse("-".to_string())
-            .collect();
+            .join("-");
 
-        f.write_str(&display)
+        f.write_str(&formatted)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_dice_from() {
+        let dice = Dice::from([3, 5]);
+        assert_eq!(dice.values, [3, 5]);
+        assert_eq!(dice.available, vec![3, 5]);
+    }
+
+    #[test]
+    fn test_dice_doubles() {
+        let dice = Dice::from([4, 4]);
+        assert_eq!(dice.values, [4, 4]);
+        // For doubles, we get 4 available uses of the die value
+        assert_eq!(dice.available, vec![4, 4, 4, 4]);
+    }
+
+    #[test]
+    fn test_remove_die() {
+        let mut dice = Dice::from([2, 5]);
+        assert!(dice.contains(2));
+        assert!(dice.consume(2).is_ok());
+        assert!(!dice.contains(2));
+        assert!(dice.contains(5));
+    }
+
+    #[test]
+    fn test_remove_unavailable_die() {
+        let mut dice = Dice::from([2, 5]);
+        assert!(dice.consume(3).is_err());
+    }
+
+    #[test]
+    fn test_max() {
+        let dice = Dice::from([2, 5]);
+        assert_eq!(dice.max(), 5);
+
+        let mut dice = Dice::from([2, 5]);
+        assert!(dice.consume(5).is_ok());
+        assert_eq!(dice.max(), 2);
+
+        let mut empty_dice = Dice::from([2, 5]);
+        assert!(empty_dice.consume(2).is_ok());
+        assert!(empty_dice.consume(5).is_ok());
+        assert_eq!(empty_dice.max(), 0);
+    }
+
+    #[test]
+    fn test_any_available() {
+        let dice = Dice::from([2, 5]);
+        assert!(dice.any_available());
+
+        let mut empty_dice = Dice::from([2, 5]);
+        assert!(empty_dice.consume(2).is_ok());
+        assert!(empty_dice.consume(5).is_ok());
+        assert!(!empty_dice.any_available());
+    }
+
+    #[test]
+    fn test_available_rolls() {
+        let dice = Dice::from([2, 5]);
+        assert_eq!(dice.available, vec![2, 5]);
+
+        let dice_doubles = Dice::from([3, 3]);
+        assert_eq!(dice_doubles.available, vec![3, 3, 3, 3]);
+    }
+
+    #[test]
+    fn test_display() {
+        let dice = Dice::from([2, 5]);
+        assert_eq!(format!("{}", dice), "2-5");
+        assert_eq!(format!("{:#}", dice), "⚁-⚄");
     }
 }

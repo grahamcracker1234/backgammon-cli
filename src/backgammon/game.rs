@@ -23,7 +23,7 @@ impl Game {
     pub fn new() -> Self {
         Self {
             current_player: Player::random(),
-            current_roll: Dice::first_roll(),
+            current_roll: Dice::opening(),
             board: Board::new(),
         }
     }
@@ -173,7 +173,7 @@ impl Game {
 
         // Ensure play is possible from the dice rolls.
         let len = to.distance(from).try_into().expect("value was truncated");
-        if !self.current_roll.check(len) {
+        if !self.current_roll.contains(len) {
             // Ensure a piece can be borne off with a greater roll than necessary only if there are no pieces behind it.
             let index = from
                 .location
@@ -199,10 +199,8 @@ impl Game {
         // Remove possible play from the dice rolls ensuring that the proper die
         // is removed if a piece was borne off with a greater than necessary roll.
         let len = to.distance(from).try_into().expect("value was truncated");
-        // let len = to.distance(&from).try_into().expect("value was truncated");
-        if self.current_roll.check(len) {
-            self.current_roll.remove(len);
-        } else {
+
+        if self.current_roll.consume(len).is_err() {
             // Ensure a piece can be borne off with a greater roll than necessary
             // only if there are no pieces behind it.
 
@@ -215,7 +213,8 @@ impl Game {
 
             assert!(!self.board.any_behind(*index, play.player));
 
-            self.current_roll.remove(self.current_roll.max());
+            let max = self.current_roll.max();
+            self.current_roll.consume(max).expect("invalid play length");
         }
 
         // If there is a blot where the player is moving to, then remove it and
@@ -247,7 +246,7 @@ impl Game {
     }
 
     fn change_turn(&mut self) {
-        self.current_roll.reroll();
+        self.current_roll = Dice::new();
         self.current_player.switch();
     }
 
@@ -266,14 +265,9 @@ impl Game {
 
         board_iter(&self.board, self.current_player)
             .flat_map(move |board_position| {
-                let rolls_iter = self
-                    .current_roll
-                    .available_rolls()
-                    .collect::<Vec<_>>()
-                    .into_iter();
-
-                rolls_iter
-                    .flat_map(|roll| {
+                self.current_roll
+                    .iter()
+                    .flat_map(|&roll| {
                         let player = self.current_player;
                         let from = board_position;
                         let from_location =
